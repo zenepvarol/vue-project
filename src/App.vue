@@ -24,22 +24,25 @@
 import { onMounted, ref, computed } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-rotatedmarker';
+import 'leaflet-rotatedmarker'; // marker döndürme
 
+// REAKTİF DEĞİŞKENLER (State)
 const searchQuery = ref('');
-const flightData = ref([]); // Tüm zaman adımlarını tutar
-const currentFlights = ref({}); // Uçakların o anki (aktif) verilerini tutar
+const currentFlights = ref({}); 
 const markers = {}; 
+const flightPaths = ref({}); 
+const animationSteps = ref({}); 
+const activeIcao = ref(null); 
 let map = null;
-let animationIndex = 0;
 
-// Arama ve liste için aktif uçuşları kullanıyoruz
+// COMPUTED ÖZELLİKLER
 const filteredFlights = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return Object.values(currentFlights.value).filter(f =>
     f.callsign?.toString().toLowerCase().includes(query)
   );
 });
+
 
 onMounted(async () => {
   map = L.map('map').setView([-28.4095, 151.9313], 7);
@@ -52,12 +55,13 @@ onMounted(async () => {
     const response = await fetch('/DH8D_valid.json');
     const data = await response.json();
     
-    // Veriyi icao24'e göre grupluyoruz (Her uçağın bir rota dizisi oluyor)
     const grouped = data.reduce((acc, row) => {
       if (!acc[row.icao24]) acc[row.icao24] = [];
       acc[row.icao24].push(row);
       return acc;
     }, {});
+
+    flightPaths.value = grouped;
 
     const planeIcon = L.divIcon({
       html: `<div class="moving-plane">✈</div>`,
@@ -66,33 +70,50 @@ onMounted(async () => {
       iconAnchor: [20, 20]
     });
 
-    // SİMÜLASYON DÖNGÜSÜ: Her saniye uçakları bir sonraki noktaya taşır
+    Object.keys(grouped).forEach(icao => {
+      const firstPoint = grouped[icao][0];
+      currentFlights.value[icao] = firstPoint;
+      animationSteps.value[icao] = 0;
+
+      if (firstPoint.lat && firstPoint.lon) {
+        // marker oluşturulurken tıklama olayı
+        const marker = L.marker([firstPoint.lat, firstPoint.lon], {
+          icon: planeIcon,
+          rotationAngle: (firstPoint.heading || 0) - 45
+        }).addTo(map);
+
+        // popup
+        marker.bindPopup(`<b>Uçuş: ${firstPoint.callsign || 'Bilinmiyor'}</b>`);
+
+        // uçağa tıklama
+        marker.on('click', () => {
+          activeIcao.value = icao;
+          marker.openPopup();
+        });
+
+        markers[icao] = marker;
+      }
+    });
+
+    // her saniye aktif uçak hareket eder
     setInterval(() => {
-      Object.keys(grouped).forEach(icao => {
-        const path = grouped[icao];
-        // Uçağın rotasında hala nokta varsa ilerle, yoksa başa sar (döngüsel uçuş)
-        const point = path[animationIndex % path.length];
+      if (activeIcao.value && flightPaths.value[activeIcao.value]) {
+        const icao = activeIcao.value;
+        const path = flightPaths.value[icao];
+        const step = animationSteps.value[icao];
         
-        currentFlights.value[icao] = point; // Listeyi güncelle
+        const nextStep = (step + 1) % path.length;
+        const point = path[nextStep];
+        
+        animationSteps.value[icao] = nextStep;
+        currentFlights.value[icao] = point;
 
-        if (point.lat && point.lon) {
-          const callsignStr = point.callsign || 'Bilinmiyor';
-
-          if (!markers[icao]) {
-            // Marker yoksa oluştur
-            markers[icao] = L.marker([point.lat, point.lon], {
-              icon: planeIcon,
-              rotationAngle: (point.heading || 0) - 45
-            }).addTo(map).bindPopup(`<b>Uçuş: ${callsignStr}</b>`);
-          } else {
-            // Marker varsa konumunu ve açısını güncelle
-            markers[icao].setLatLng([point.lat, point.lon]);
-            markers[icao].setRotationAngle((point.heading || 0) - 45);
-          }
+        if (markers[icao]) {
+          markers[icao].setLatLng([point.lat, point.lon]);
+          markers[icao].setRotationAngle((point.heading || 0) - 45);
         }
-      });
-      animationIndex++;
-    }, 1000); // 1 saniyede bir güncelleme (Verindeki zaman adımlarına göre ayarlanabilir)
+      }
+    }, 1000);
 
   } catch (error) {
     console.error("Hata:", error);
@@ -101,7 +122,8 @@ onMounted(async () => {
 
 const focusFlight = (f) => {
   if (f.lat && f.lon) {
-    map.setView([f.lat, f.lon], 12);
+    activeIcao.value = f.icao24; 
+    map.setView([f.lat, f.lon], 12); // yakınlaşma seviyesi
     markers[f.icao24]?.openPopup();
   }
 };
@@ -132,12 +154,11 @@ html, body { height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; bac
 
 #map { flex-grow: 1; height: 100%; background: #0b0b0b; }
 
-/* Uçak ikonu tasarımı ve yumuşak geçiş efekti */
 .moving-plane {
   font-size: 40px; 
   color: #9381ff; 
   text-shadow: 1px 1px 2px black;
-  transition: all 1s linear; /* Uçağın ışınlanmak yerine kayarak gitmesini sağlar */
+  transition: all 1s linear; 
 }
 .plane-icon { background: none !important; border: none !important; }
 </style>
