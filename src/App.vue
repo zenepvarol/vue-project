@@ -28,11 +28,11 @@ import 'leaflet-rotatedmarker';
 
 // REAKTİF DEGİSKENLER 
 const searchQuery = ref('');
-const currentFlights = ref({}); 
-const markers = {}; 
-const flightPaths = ref({}); 
-const animationSteps = ref({}); 
-const activeIcao = ref(null); 
+const currentFlights = ref({});
+const markers = {};
+const flightPaths = ref({});
+const animationSteps = ref({});
+const activeIcao = ref(null);
 
 // GUZERGAH GORSELLESTİRME 
 const staticRoutes = {}; // full rota
@@ -56,7 +56,7 @@ const drawFullRoute = (icao) => { // ucak uzerinden gectikce koyulasır yol
 
   const allPoints = flightPaths.value[icao].map(p => [p.lat, p.lon]);
   const currentStep = animationSteps.value[icao];
-  
+
   // tam güzergah - soluk
   staticRoutes[icao] = L.polyline(allPoints, {
     color: '#9381ff',
@@ -67,14 +67,14 @@ const drawFullRoute = (icao) => { // ucak uzerinden gectikce koyulasır yol
   // baslangictan mevcut konuma kadar olan yol - koyu
   const pointsSoFar = allPoints.slice(0, currentStep + 1);
   activeRoutes[icao] = L.polyline(pointsSoFar, {
-    color: '#9381ff', 
+    color: '#9381ff',
     weight: 4,
     opacity: 1
   }).addTo(map);
 
   const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
   const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
-  
+
   startCircle.addTo(map);
   endCircle.addTo(map);
   terminalMarkers[icao] = [startCircle, endCircle];
@@ -90,7 +90,7 @@ onMounted(async () => {
   try {
     const response = await fetch('/DH8D_valid.json');
     const data = await response.json();
-    
+
     // veriler icao24'e (ucak kodu) gore gruplandırarak rota cikartilir
     const grouped = data.reduce((acc, row) => {
       if (!acc[row.icao24]) acc[row.icao24] = [];
@@ -107,7 +107,7 @@ onMounted(async () => {
       iconAnchor: [20, 20]
     });
 
-// ucaklar haritaya sabit yerlestirilir
+    // ucaklar haritaya sabit yerlestirilir
     Object.keys(grouped).forEach(icao => {
       const firstPoint = grouped[icao][0]; // ucaklarin rota dizisindeki ilk koordinat verisi
       currentFlights.value[icao] = firstPoint; // ucaklarin baslangic verisi listede görünmesi için reaktif degisken yaptik
@@ -116,16 +116,16 @@ onMounted(async () => {
       if (firstPoint.lat && firstPoint.lon) {
 
         // Leaflet marker nesnesini ucsk konumu ve yonu kullanılarak oluşturuyoruz (yon-heading)
-        const marker = L.marker([firstPoint.lat, firstPoint.lon], { 
-          icon: planeIcon, 
+        const marker = L.marker([firstPoint.lat, firstPoint.lon], {
+          icon: planeIcon,
           rotationAngle: (firstPoint.heading || 0) - 45 // icon gidis yönüne göre donuyor
         }).addTo(map); // olusan markerlar haritaya ekleniyor
 
         marker.bindPopup(`<b>Uçuş: ${firstPoint.callsign || 'Bilinmiyor'}</b>`);  // tıklandığında açılan popup
 
         marker.on('click', () => { //icona tıklanınca ucak aktiflesiyor
+          animationSteps.value[icao] = 0;
           activeIcao.value = icao;
-          
           drawFullRoute(icao); // tam guzergah
           setTimeout(() => marker.openPopup(), 100); // harita guncellenirlen popup kapanmasın diye gecikme kodu
         });
@@ -140,12 +140,17 @@ onMounted(async () => {
         const icao = activeIcao.value;
         const path = flightPaths.value[icao];
         const step = animationSteps.value[icao];
-        
-        const nextStep = (step + 1) % path.length;
+
+        if (step + 1 >= path.length) {
+          activeIcao.value = null; // bir sonraki adım rota uzunluğuna eşitse uçuşu durdur
+          return;
+        }
+
+        const nextStep = step + 1; 
         const point = path[nextStep];
-        
+
         animationSteps.value[icao] = nextStep;
-        currentFlights.value[icao] = point; // Listeyi güncelle
+        currentFlights.value[icao] = point;
 
         if (markers[icao]) {
           const newPos = [point.lat, point.lon];
@@ -153,11 +158,7 @@ onMounted(async () => {
           markers[icao].setRotationAngle((point.heading || 0) - 45);
 
           if (activeRoutes[icao]) {
-            if (nextStep === 0) {
-              activeRoutes[icao].setLatLngs([newPos]); // rota basa donunce temizle
-            } else {
-              activeRoutes[icao].addLatLng(newPos); 
-            }
+            activeRoutes[icao].addLatLng(newPos);
           }
         }
       }
@@ -170,7 +171,10 @@ onMounted(async () => {
 
 const focusFlight = (f) => {
   if (f.lat && f.lon) { // koordinat verileri gecerli mi 
-    
+
+    // seçilen uçağın adım sayacı 0
+    animationSteps.value[f.icao24] = 0;
+
     activeIcao.value = f.icao24; // tıklanan ucak aktiflesir
     drawFullRoute(f.icao24); // guzergah cizimi
     map.setView([f.lat, f.lon], 12); // harita odagı zoom seviyesi 12
@@ -182,52 +186,112 @@ const focusFlight = (f) => {
 </script>
 
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { 
-  height: 100%; 
-  width: 100%; 
-  font-family: 'Segoe UI', sans-serif; 
-  background: #121212; 
-  overflow: hidden; 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-.app-container { /* sidebar ve harita yan yana tam ekran*/
-  display: flex; 
-  height: 100vh; 
-  width: 100vw; 
-  position: absolute; 
-  top: 0; 
-  left: 0; 
+html,
+body {
+  height: 100%;
+  width: 100%;
+  font-family: 'Segoe UI', sans-serif;
+  background: #121212;
+  overflow: hidden;
 }
 
-.sidebar { /*ucus listesi alani*/
-  width: 320px; 
+.app-container {
+  display: flex;
+  /* sidebar ve harita yan yana tam ekran*/
+  height: 100vh;
+  width: 100vw;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.sidebar {
+  width: 320px;
+  /*ucus listesi alani*/
   min-width: 320px;
-  background: #f7d9c4; 
+  background: #f7d9c4;
   color: #333;
-  display: flex; 
+  display: flex;
   flex-direction: column;
-  border-right: 1px solid #333; 
+  border-right: 1px solid #333;
   z-index: 1000;
 }
 
-.sidebar-header { padding: 20px; background: #e2cfc4; border-bottom: 1px solid #333; }
-.sidebar-header h3 { margin: 0 0 10px 0; color: #000; }
-.search-input { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #fff; background: #faedcb; color: #000; box-sizing: border-box; }
+.sidebar-header {
+  padding: 20px;
+  background: #e2cfc4;
+  border-bottom: 1px solid #333;
+}
 
-.flight-list { flex: 1; overflow-y: auto; list-style: none; padding: 0; }
-.flight-list li { padding: 15px 20px; border-bottom: 1px solid #e2cfc4; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-.flight-list li:hover { background: #fec3a6; } /* fare üstüne gelince renk degisimi */
-.callsign { font-weight: bold; color: #282828; }
-.details { font-size: 0.8em; color: #666; }
+.sidebar-header h3 {
+  margin: 0 0 10px 0;
+  color: #000;
+}
 
-#map { flex-grow: 1; height: 100%; background: #0b0b0b; } /* Sidebar'dan kalan tüm alan*/
+.search-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #fff;
+  background: #faedcb;
+  color: #000;
+  box-sizing: border-box;
+}
+
+.flight-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+}
+
+.flight-list li {
+  padding: 15px 20px;
+  border-bottom: 1px solid #e2cfc4;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flight-list li:hover {
+  background: #fec3a6;
+}
+
+/* fare üstüne gelince renk degisimi */
+.callsign {
+  font-weight: bold;
+  color: #282828;
+}
+
+.details {
+  font-size: 0.8em;
+  color: #666;
+}
+
+#map {
+  flex-grow: 1;
+  height: 100%;
+  /* Sidebar'dan kalan tüm alan*/
+  background: #0b0b0b;
+}
 
 .moving-plane {
-  font-size: 40px; 
-  color: #9381ff; 
+  font-size: 40px;
+  color: #9381ff;
   text-shadow: 1px 1px 2px black;
-  transition: all 1s linear; /* sürekli akici hareket */
+  transition: all 1s linear;
+  /* sürekli akici hareket */
 }
-.plane-icon { background: none !important; border: none !important; } 
+
+.plane-icon {
+  background: none !important;
+  border: none !important;
+}
 </style>
