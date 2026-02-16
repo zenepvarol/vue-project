@@ -24,18 +24,24 @@
 import { onMounted, ref, computed } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-rotatedmarker'; // marker döndürme
+import 'leaflet-rotatedmarker';
 
-// REAKTİF DEĞİŞKENLER (State)
+// REAKTİF DEGİSKENLER 
 const searchQuery = ref('');
 const currentFlights = ref({}); 
 const markers = {}; 
 const flightPaths = ref({}); 
 const animationSteps = ref({}); 
 const activeIcao = ref(null); 
+
+// GUZERGAH GORSELLESTİRME 
+const staticRoutes = {}; // full rota
+const activeRoutes = {}; // üzerinden gecilen yol
+const terminalMarkers = {}; // baslangıc ve varis noktalari
+
 let map = null;
 
-// COMPUTED ÖZELLİKLER
+// COMPUTED: Liste aramaya göre filtrelenir
 const filteredFlights = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return Object.values(currentFlights.value).filter(f =>
@@ -43,9 +49,39 @@ const filteredFlights = computed(() => {
   );
 });
 
+const drawFullRoute = (icao) => { // ucak uzerinden gectikce koyulasır yol
+  if (staticRoutes[icao]) map.removeLayer(staticRoutes[icao]); // eski cizimler siliniyor
+  if (activeRoutes[icao]) map.removeLayer(activeRoutes[icao]);
+  if (terminalMarkers[icao]) terminalMarkers[icao].forEach(m => map.removeLayer(m));
+
+  const allPoints = flightPaths.value[icao].map(p => [p.lat, p.lon]);
+  const currentStep = animationSteps.value[icao];
+  
+  // tam güzergah - soluk
+  staticRoutes[icao] = L.polyline(allPoints, {
+    color: '#9381ff',
+    weight: 2,
+    opacity: 0.2
+  }).addTo(map);
+
+  // baslangictan mevcut konuma kadar olan yol - koyu
+  const pointsSoFar = allPoints.slice(0, currentStep + 1);
+  activeRoutes[icao] = L.polyline(pointsSoFar, {
+    color: '#9381ff', 
+    weight: 4,
+    opacity: 1
+  }).addTo(map);
+
+  const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
+  const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
+  
+  startCircle.addTo(map);
+  endCircle.addTo(map);
+  terminalMarkers[icao] = [startCircle, endCircle];
+};
 
 onMounted(async () => {
-  map = L.map('map').setView([-28.4095, 151.9313], 7);
+  map = L.map('map').setView([-28.4095, 151.9313], 7); // harita baslangic merkezi
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
@@ -55,6 +91,7 @@ onMounted(async () => {
     const response = await fetch('/DH8D_valid.json');
     const data = await response.json();
     
+    // veriler icao24'e (ucak kodu) gore gruplandırarak rota cikartilir
     const grouped = data.reduce((acc, row) => {
       if (!acc[row.icao24]) acc[row.icao24] = [];
       acc[row.icao24].push(row);
@@ -70,32 +107,34 @@ onMounted(async () => {
       iconAnchor: [20, 20]
     });
 
+// ucaklar haritaya sabit yerlestirilir
     Object.keys(grouped).forEach(icao => {
-      const firstPoint = grouped[icao][0];
-      currentFlights.value[icao] = firstPoint;
-      animationSteps.value[icao] = 0;
+      const firstPoint = grouped[icao][0]; // ucaklarin rota dizisindeki ilk koordinat verisi
+      currentFlights.value[icao] = firstPoint; // ucaklarin baslangic verisi listede görünmesi için reaktif degisken yaptik
+      animationSteps.value[icao] = 0; //ucak 0. adımdan basliyor
 
       if (firstPoint.lat && firstPoint.lon) {
-        // marker oluşturulurken tıklama olayı
-        const marker = L.marker([firstPoint.lat, firstPoint.lon], {
-          icon: planeIcon,
-          rotationAngle: (firstPoint.heading || 0) - 45
-        }).addTo(map);
 
-        // popup
-        marker.bindPopup(`<b>Uçuş: ${firstPoint.callsign || 'Bilinmiyor'}</b>`);
+        // Leaflet marker nesnesini ucsk konumu ve yonu kullanılarak oluşturuyoruz (yon-heading)
+        const marker = L.marker([firstPoint.lat, firstPoint.lon], { 
+          icon: planeIcon, 
+          rotationAngle: (firstPoint.heading || 0) - 45 // icon gidis yönüne göre donuyor
+        }).addTo(map); // olusan markerlar haritaya ekleniyor
 
-        // uçağa tıklama
-        marker.on('click', () => {
+        marker.bindPopup(`<b>Uçuş: ${firstPoint.callsign || 'Bilinmiyor'}</b>`);  // tıklandığında açılan popup
+
+        marker.on('click', () => { //icona tıklanınca ucak aktiflesiyor
           activeIcao.value = icao;
-          marker.openPopup();
+          
+          drawFullRoute(icao); // tam guzergah
+          setTimeout(() => marker.openPopup(), 100); // harita guncellenirlen popup kapanmasın diye gecikme kodu
         });
 
-        markers[icao] = marker;
+        markers[icao] = marker; // marker a daha sonra erisebilmek icin sozlukte sakliyoruz
       }
     });
 
-    // her saniye aktif uçak hareket eder
+    // her saniye konum güncelleme
     setInterval(() => {
       if (activeIcao.value && flightPaths.value[activeIcao.value]) {
         const icao = activeIcao.value;
@@ -106,59 +145,89 @@ onMounted(async () => {
         const point = path[nextStep];
         
         animationSteps.value[icao] = nextStep;
-        currentFlights.value[icao] = point;
+        currentFlights.value[icao] = point; // Listeyi güncelle
 
         if (markers[icao]) {
-          markers[icao].setLatLng([point.lat, point.lon]);
+          const newPos = [point.lat, point.lon];
+          markers[icao].setLatLng(newPos);
           markers[icao].setRotationAngle((point.heading || 0) - 45);
+
+          if (activeRoutes[icao]) {
+            if (nextStep === 0) {
+              activeRoutes[icao].setLatLngs([newPos]); // rota basa donunce temizle
+            } else {
+              activeRoutes[icao].addLatLng(newPos); 
+            }
+          }
         }
       }
     }, 1000);
 
   } catch (error) {
-    console.error("Hata:", error);
+    console.error("Veri hatası:", error);
   }
 });
 
 const focusFlight = (f) => {
-  if (f.lat && f.lon) {
-    activeIcao.value = f.icao24; 
-    map.setView([f.lat, f.lon], 12); // yakınlaşma seviyesi
-    markers[f.icao24]?.openPopup();
+  if (f.lat && f.lon) { // koordinat verileri gecerli mi 
+    
+    activeIcao.value = f.icao24; // tıklanan ucak aktiflesir
+    drawFullRoute(f.icao24); // guzergah cizimi
+    map.setView([f.lat, f.lon], 12); // harita odagı zoom seviyesi 12
+    setTimeout(() => {
+      markers[f.icao24]?.openPopup();
+    }, 350); // gorsel kayma olmasın diye 350 ms bekleme
   }
 };
 </script>
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; background: #121212; overflow: hidden; }
+html, body { 
+  height: 100%; 
+  width: 100%; 
+  font-family: 'Segoe UI', sans-serif; 
+  background: #121212; 
+  overflow: hidden; 
+}
 
-.app-container { display: flex; height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; }
+.app-container { /* sidebar ve harita yan yana tam ekran*/
+  display: flex; 
+  height: 100vh; 
+  width: 100vw; 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+}
 
-.sidebar {
-  width: 320px; min-width: 320px;
-  background: #f7d9c4; color: #333;
-  display: flex; flex-direction: column;
-  border-right: 1px solid #333; z-index: 1000;
+.sidebar { /*ucus listesi alani*/
+  width: 320px; 
+  min-width: 320px;
+  background: #f7d9c4; 
+  color: #333;
+  display: flex; 
+  flex-direction: column;
+  border-right: 1px solid #333; 
+  z-index: 1000;
 }
 
 .sidebar-header { padding: 20px; background: #e2cfc4; border-bottom: 1px solid #333; }
 .sidebar-header h3 { margin: 0 0 10px 0; color: #000; }
-.search-input { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #fff; background: #faedcb; color: #000; }
+.search-input { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #fff; background: #faedcb; color: #000; box-sizing: border-box; }
 
 .flight-list { flex: 1; overflow-y: auto; list-style: none; padding: 0; }
 .flight-list li { padding: 15px 20px; border-bottom: 1px solid #e2cfc4; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-.flight-list li:hover { background: #fec3a6; }
+.flight-list li:hover { background: #fec3a6; } /* fare üstüne gelince renk degisimi */
 .callsign { font-weight: bold; color: #282828; }
 .details { font-size: 0.8em; color: #666; }
 
-#map { flex-grow: 1; height: 100%; background: #0b0b0b; }
+#map { flex-grow: 1; height: 100%; background: #0b0b0b; } /* Sidebar'dan kalan tüm alan*/
 
 .moving-plane {
   font-size: 40px; 
   color: #9381ff; 
   text-shadow: 1px 1px 2px black;
-  transition: all 1s linear; 
+  transition: all 1s linear; /* sürekli akici hareket */
 }
-.plane-icon { background: none !important; border: none !important; }
+.plane-icon { background: none !important; border: none !important; } 
 </style>
