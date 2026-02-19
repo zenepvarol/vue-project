@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <div class="sidebar" :class="{ dark: darkMode }">
+    <div class="sidebar" :class="{ dark: darkMode, collapsed: !sidebarOpen }">
       <div class="sidebar-header" :class="{ dark: darkMode }">
         <div class="header-top">
           <h3>Uçuş Listesi</h3>
@@ -22,6 +22,12 @@
         </li>
       </ul>
     </div>
+
+    <button class="sidebar-toggle" :class="{ dark: darkMode, open: sidebarOpen }" @click="toggleSidebar"
+      :title="sidebarOpen ? 'Sidebar\'ı Kapat' : 'Sidebar\'ı Aç'">
+      {{ sidebarOpen ? '◀' : '▶' }}
+    </button>
+
     <div id="map"></div>
   </div>
 </template>
@@ -41,9 +47,14 @@ const animationSteps = ref({});
 const activeIcao = ref(null);
 const darkMode = ref(false);
 const isPaused = ref(false); // hareket halindeyken duraklatma icin
+const sidebarOpen = ref(true);
 
 const toggleDarkMode = () => {
   darkMode.value = !darkMode.value;
+};
+
+const toggleSidebar = () => {
+  sidebarOpen.value = !sidebarOpen.value;
 };
 
 // GUZERGAH GORSELI
@@ -75,7 +86,7 @@ const updatePopup = (p) => {
   `;
 };
 
-// Haritadaki tüm eski rotaları siler
+// haritadaki tüm eski rotaları silme
 const clearAllRoutes = () => {
   Object.keys(staticRoutes).forEach(key => {
     if (staticRoutes[key]) map.removeLayer(staticRoutes[key]);
@@ -125,14 +136,21 @@ const drawFullRoute = (icao) => {
 };
 
 onMounted(async () => {
-  map = L.map('map').setView([20, 0], 2);
+  const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180)); // harita sınırı
+
+  map = L.map('map', {
+    maxBounds: worldBounds, // sınır dışına cıkılmasın 
+    maxBoundsViscocity: 1.0, // !!!!!!!!!!!!!!!! sonra tekrar bakıcam
+    minZoom: 1.7 //haritadan uzaklasma 
+  }).setView([20, 0], 2); // baslangic ve yakınlık 
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
+    attribution: '© OpenStreetMap',
+    noWrap: true //sonsuz dongu kapandı
   }).addTo(map);
 
   try {
-    const response = await fetch('/DH8D_valid.json');
+    const response = await fetch('/eskisi.json');
     const data = await response.json();
 
     const grouped = data.reduce((acc, row) => {
@@ -165,7 +183,7 @@ onMounted(async () => {
 
         marker.on('click', () => {
           if (activeIcao.value === icao) {
-            isPaused.value = !isPaused.value;  // Aynı uçaksa tıklanan durdur/devam et
+            isPaused.value = !isPaused.value;  // tiklanan aynı ucaksa durdur devam et
           } else { //baska ucaksa bastan 
             clearAllRoutes();
             animationSteps.value[icao] = 0;
@@ -222,7 +240,7 @@ const focusFlight = (f) => {
     animationSteps.value[f.icao24] = 0;
     activeIcao.value = f.icao24;
     drawFullRoute(f.icao24);
-    map.setView([f.lat, f.lon], 212);
+    map.setView([f.lat, f.lon], 12);
     setTimeout(() => {
       markers[f.icao24]?.openPopup();
     }, 350);
@@ -264,7 +282,51 @@ body {
   flex-direction: column;
   border-right: 1px solid #ccc;
   z-index: 1000;
-  transition: background 0.3s, color 0.3s;
+  transition: width 0.3s ease, min-width 0.3s ease, background 0.3s, color 0.3s;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-right: none;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  left: 320px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1100;
+  background: #f7d9c4;
+  border: 1px solid #ccc;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  transition: left 0.3s ease, background 0.3s, color 0.3s;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.15);
+  line-height: 1;
+}
+
+.sidebar-toggle:not(.open) {
+  left: 0;
+}
+
+.sidebar-toggle.dark {
+  background: #16213e;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+.sidebar-toggle:hover {
+  background: #fec3a6;
+}
+
+.sidebar-toggle.dark:hover {
+  background: #0f3460;
 }
 
 .sidebar.dark {
@@ -377,7 +439,7 @@ body {
 #map {
   flex-grow: 1;
   height: 100%;
-  background: #0b0b0b;
+  background: #aad3df;
 }
 
 .moving-plane {
