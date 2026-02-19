@@ -3,16 +3,59 @@
     <div class="sidebar" :class="{ dark: darkMode, collapsed: !sidebarOpen }">
       <div class="sidebar-header" :class="{ dark: darkMode }">
         <div class="header-top">
-          <h3>Uçuş Listesi</h3>
+          <h3>{{ selectedFlight ? 'Uçuş Detayları' : 'Uçuş Listesi' }}</h3>
           <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
             {{ darkMode ? '☀️' : '🌙' }}
           </button>
         </div>
-        <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input"
+        <input v-if="!selectedFlight" v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input"
           :class="{ dark: darkMode }" />
       </div>
 
-      <ul class="flight-list">
+      <div v-if="selectedFlight" class="flight-details" :class="{ dark: darkMode }">
+        <button class="back-button" @click="activeIcao = null; clearAllRoutes()" :class="{ dark: darkMode }">
+          ◀ Listeye Dön
+        </button>
+        <div class="details-card" :class="{ dark: darkMode }">
+          <div class="details-header">
+            <span class="plane-icon-large">✈</span>
+            <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
+          </div>
+          <div class="details-grid">
+            <div class="detail-item">
+              <label>Model</label>
+              <span>{{ selectedFlight.modeltype || 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Hız</label>
+              <span>{{ Math.round(selectedFlight.velocity) }} kt</span>
+            </div>
+            <div class="detail-item">
+              <label>Rakım</label>
+              <span>{{ Math.round(selectedFlight.baroaltitude) }} ft</span>
+            </div>
+            <div class="detail-item">
+              <label>Mesafe (Gidilen / Toplam)</label>
+              <span>{{ Math.round(selectedFlight.distance_from_dep) }} / {{ Math.round(selectedFlight.trip_distance) }}
+                km</span>
+            </div>
+            <div v-if="selectedFlight.trip_distance" class="detail-item progress-container">
+              <label>Yolun %{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}
+                tamamlandı</label>
+              <div class="progress-bar">
+                <div class="progress-fill"
+                  :style="{ width: (selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100 + '%' }">
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="pause-button" @click="isPaused = !isPaused" :class="{ dark: darkMode, paused: isPaused }">
+            {{ isPaused ? 'Hareketi Başlat' : 'Hareketi Durdur' }}
+          </button>
+        </div>
+      </div>
+
+      <ul v-else class="flight-list">
         <li v-for="f in filteredFlights" :key="f.icao24" @click="focusFlight(f)">
           <div class="flight-info">
             <span class="callsign">{{ f.callsign || 'Bilinmiyor' }}</span>
@@ -37,6 +80,8 @@ import { onMounted, ref, computed } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
+import 'leaflet.marker.slideto';
+
 
 // REAKTİF DEGİSKENLER 
 const searchQuery = ref('');
@@ -72,6 +117,9 @@ const filteredFlights = computed(() => {
   );
 });
 
+// COMPUTED: Secilen uçuş verisi
+const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
+
 // POPUP //rota ekle
 const updatePopup = (p) => {
   return `
@@ -86,7 +134,7 @@ const updatePopup = (p) => {
   `;
 };
 
-// haritadaki tüm eski rotaları silme
+// Haritadaki tüm eski rotaları siler
 const clearAllRoutes = () => {
   Object.keys(staticRoutes).forEach(key => {
     if (staticRoutes[key]) map.removeLayer(staticRoutes[key]);
@@ -136,13 +184,13 @@ const drawFullRoute = (icao) => {
 };
 
 onMounted(async () => {
-  const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180)); // harita sınırı
+  const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
 
   map = L.map('map', {
-    maxBounds: worldBounds, // sınır dışına cıkılmasın 
-    maxBoundsViscocity: 1.0, // !!!!!!!!!!!!!!!! sonra tekrar bakıcam
-    minZoom: 1.7 //haritadan uzaklasma 
-  }).setView([20, 0], 2); // baslangic ve yakınlık 
+    maxBounds: worldBounds,
+    maxBoundsViscosity: 1.0,
+    minZoom: 2
+  }).setView([20, 0], 2);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
@@ -179,11 +227,9 @@ onMounted(async () => {
           rotationAngle: (firstPoint.heading || 0) - 80
         }).addTo(map);
 
-        marker.bindPopup(updatePopup(firstPoint));
-
         marker.on('click', () => {
           if (activeIcao.value === icao) {
-            isPaused.value = !isPaused.value;  // tiklanan aynı ucaksa durdur devam et
+            isPaused.value = !isPaused.value;  // Aynı uçaksa tıklanan durdur/devam et
           } else { //baska ucaksa bastan 
             clearAllRoutes();
             animationSteps.value[icao] = 0;
@@ -191,9 +237,7 @@ onMounted(async () => {
             isPaused.value = false;
             drawFullRoute(icao);
           }
-          setTimeout(() => marker.openPopup(), 100);
         });
-
         markers[icao] = marker;
       }
     });
@@ -217,16 +261,19 @@ onMounted(async () => {
 
         if (markers[icao]) {
           const newPos = [point.lat, point.lon];
-          markers[icao].setLatLng(newPos);
+
+          markers[icao].slideTo(newPos, {
+            duration: 600,     
+            keepAtCenter: false
+          });
           markers[icao].setRotationAngle((point.heading || 0) - 80);
-          markers[icao].setPopupContent(updatePopup(point));
 
           if (activeRoutes[icao]) {
             activeRoutes[icao].addLatLng(newPos);
           }
         }
       }
-    }, 1000);
+    }, 600);
 
   } catch (error) {
     console.error("Hata:", error);
@@ -241,9 +288,7 @@ const focusFlight = (f) => {
     activeIcao.value = f.icao24;
     drawFullRoute(f.icao24);
     map.setView([f.lat, f.lon], 12);
-    setTimeout(() => {
-      markers[f.icao24]?.openPopup();
-    }, 350);
+    // markers[f.icao24]?.openPopup();
   }
 };
 </script>
@@ -446,11 +491,152 @@ body {
   font-size: 40px;
   color: #9381ff;
   text-shadow: 1px 1px 2px black;
-  transition: all 1s linear;
+  transition: all 600ms linear;
 }
 
 .plane-icon {
   background: none !important;
   border: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flight-details {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+}
+
+.back-button {
+  background: #faedcb;
+  border: 1px solid #ccc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: flex-start;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.back-button.dark {
+  background: #0f3460;
+  color: #e0e0e0;
+  border-color: #333;
+}
+
+.back-button:hover {
+  background: #fec3a6;
+}
+
+.details-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.details-card.dark {
+  background: #16213e;
+  border: 1px solid #333;
+}
+
+.details-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 2px solid #f7d9c4;
+  padding-bottom: 10px;
+}
+
+.details-card.dark .details-header {
+  border-bottom-color: #2a2a4a;
+}
+
+.plane-icon-large {
+  font-size: 32px;
+  color: #9381ff;
+}
+
+.details-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-item label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #888;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.detail-item span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.details-card.dark .detail-item span {
+  color: #e0e0e0;
+}
+
+.progress-container {
+  margin-top: 5px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.details-card.dark .progress-bar {
+  background: #2a2a4a;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #9381ff;
+  transition: width 0.3s ease;
+}
+
+.pause-button {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #9381ff;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pause-button:hover {
+  background: #7a69e6;
+}
+
+.pause-button.paused {
+  background: #2ecc71;
+}
+
+.pause-button.dark {
+  opacity: 0.9;
 }
 </style>
