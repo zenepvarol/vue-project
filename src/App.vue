@@ -59,15 +59,13 @@
         <li v-for="f in filteredFlights" :key="f.icao24" @click="focusFlight(f)">
           <div class="flight-info">
             <span class="callsign">{{ f.callsign || 'Bilinmiyor' }}</span>
-            <span class="details">Hız: {{ Math.round(f.velocity) }} | Rakım: {{ Math.round(f.baroaltitude) }}ft</span>
           </div>
           <div class="arrow" :style="{ transform: `rotate(${(f.heading || 0) - 80}deg)` }">✈</div>
         </li>
       </ul>
     </div>
 
-    <button class="sidebar-toggle" :class="{ dark: darkMode, open: sidebarOpen }" @click="toggleSidebar"
-      :title="sidebarOpen ? 'Sidebar\'ı Kapat' : 'Sidebar\'ı Aç'">
+    <button class="sidebar-toggle" :class="{ dark: darkMode, open: sidebarOpen }" @click.stop="toggleSidebar">
       {{ sidebarOpen ? '◀' : '▶' }}
     </button>
 
@@ -119,20 +117,6 @@ const filteredFlights = computed(() => {
 
 // COMPUTED: Secilen uçuş verisi
 const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
-
-// POPUP //rota ekle
-const updatePopup = (p) => {
-  return `
-    <div style="min-width: 160px; font-family: sans-serif; line-height: 1.5;">
-      <b style="color: #9381ff; font-size: 14px;">Uçuş Numarası: ${p.callsign || 'Bilinmiyor'}</b>
-      <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;">
-      <b>Model:</b> ${p.modeltype || 'N/A'}<br>
-      <b>Hız:</b> ${Math.round(p.velocity)} kt<br>
-      <b>Rakım:</b> ${Math.round(p.baroaltitude)} ft<br>
-      <b>Mesafe:</b> ${Math.round(p.distance_from_dep)} / ${Math.round(p.trip_distance)} km
-    </div>
-  `;
-};
 
 // Haritadaki tüm eski rotaları siler
 const clearAllRoutes = () => {
@@ -198,7 +182,7 @@ onMounted(async () => {
   }).addTo(map);
 
   try {
-    const response = await fetch('/eskisi.json');
+    const response = await fetch('/ucus_tamamlandi.json');
     const data = await response.json();
 
     const grouped = data.reduce((acc, row) => {
@@ -227,10 +211,13 @@ onMounted(async () => {
           rotationAngle: (firstPoint.heading || 0) - 80
         }).addTo(map);
 
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          sidebarOpen.value = true;
+
           if (activeIcao.value === icao) {
-            isPaused.value = !isPaused.value;  // Aynı uçaksa tıklanan durdur/devam et
-          } else { //baska ucaksa bastan 
+            isPaused.value = !isPaused.value;
+          } else {
             clearAllRoutes();
             animationSteps.value[icao] = 0;
             activeIcao.value = icao;
@@ -263,9 +250,10 @@ onMounted(async () => {
           const newPos = [point.lat, point.lon];
 
           markers[icao].slideTo(newPos, {
-            duration: 600,     
+            duration: 100,
             keepAtCenter: false
           });
+
           markers[icao].setRotationAngle((point.heading || 0) - 80);
 
           if (activeRoutes[icao]) {
@@ -273,7 +261,7 @@ onMounted(async () => {
           }
         }
       }
-    }, 600);
+    }, 100);
 
   } catch (error) {
     console.error("Hata:", error);
@@ -282,13 +270,18 @@ onMounted(async () => {
 
 const focusFlight = (f) => {
   if (f.lat && f.lon) {
+    sidebarOpen.value = true;
+
     clearAllRoutes();
     isPaused.value = false;
     animationSteps.value[f.icao24] = 0;
     activeIcao.value = f.icao24;
     drawFullRoute(f.icao24);
-    map.setView([f.lat, f.lon], 12);
-    // markers[f.icao24]?.openPopup();
+
+    map.setView([f.lat, f.lon], 12, {
+      animate: true,
+      duration: 1 // saniye cinsinden akıcı geçiş
+    });
   }
 };
 </script>
