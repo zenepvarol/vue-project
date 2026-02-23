@@ -1,21 +1,47 @@
 <template>
   <div class="app-container">
-    <div class="sidebar" :class="{ dark: darkMode, collapsed: !sidebarOpen }">
+
+    <!-- SOL PANEL -->
+    <div class="sidebar left" :class="{ dark: darkMode, collapsed: !sidebarOpen }">
       <div class="sidebar-header" :class="{ dark: darkMode }">
         <div class="header-top">
-          <h3>{{ selectedFlight ? 'Uçuş Detayları' : 'Uçuş Listesi' }}</h3>
-          <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
+          <h3>Uçuş Listesi</h3>
+          <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydinlik Mod' : 'Karanlik Mod'">
             {{ darkMode ? '☀️' : '🌙' }}
           </button>
         </div>
-        <input v-if="!selectedFlight" v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input"
+        <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input"
           :class="{ dark: darkMode }" />
       </div>
 
-      <div v-if="selectedFlight" class="flight-details" :class="{ dark: darkMode }">
-        <button class="back-button" @click="activeIcao = null; clearAllRoutes()" :class="{ dark: darkMode }">
-          ◀ Listeye Dön
-        </button>
+      <!-- UCUS LISTESI -->
+      <ul class="flight-list">
+        <li v-for="f in filteredFlights" :key="f.icao24" @click="focusFlight(f)"
+          :class="{ active: activeIcao === f.icao24 }">
+          <div class="flight-info">
+            <span class="callsign">{{ f.callsign || 'Bilinmiyor' }}</span>
+          </div>
+          <div class="arrow" :style="{ transform: `rotate(${(f.heading || 0) - 80}deg)` }">✈</div>
+        </li>
+      </ul>
+    </div>
+
+    <button class="sidebar-toggle" :class="{ dark: darkMode, open: sidebarOpen }" @click.stop="toggleSidebar">
+      {{ sidebarOpen ? '◀' : '▶' }}
+    </button>
+
+    <div id="map"></div>
+
+    <!-- SAĞ PANEL -->
+    <div v-if="selectedFlight" class="sidebar right" :class="{ dark: darkMode }">
+      <div class="sidebar-header" :class="{ dark: darkMode }">
+        <div class="header-top">
+          <h3>Uçuş Detayları</h3>
+          <button class="close-button" @click="activeIcao = null; clearAllRoutes()" :title="'Kapat'">✕</button>
+        </div>
+      </div>
+
+      <div class="flight-details" :class="{ dark: darkMode }">
         <div class="details-card" :class="{ dark: darkMode }">
           <div class="details-header">
             <span class="plane-icon-large">✈</span>
@@ -49,33 +75,18 @@
               </div>
             </div>
           </div>
-          <button class="pause-button" @click="isPaused = !isPaused" :class="{ dark: darkMode, paused: isPaused }">
+          <button class="pause-button" @click="togglePause" :class="{ dark: darkMode, paused: isPaused }">
             {{ isPaused ? 'Hareketi Başlat' : 'Hareketi Durdur' }}
           </button>
         </div>
       </div>
-
-      <ul v-else class="flight-list">
-        <li v-for="f in filteredFlights" :key="f.icao24" @click="focusFlight(f)">
-          <div class="flight-info">
-            <span class="callsign">{{ f.callsign || 'Bilinmiyor' }}</span>
-          </div>
-          <div class="arrow" :style="{ transform: `rotate(${(f.heading || 0) - 80}deg)` }">✈</div>
-        </li>
-      </ul>
     </div>
-
-    <button class="sidebar-toggle" :class="{ dark: darkMode, open: sidebarOpen }" @click.stop="toggleSidebar">
-      {{ sidebarOpen ? '◀' : '▶' }}
-    </button>
-
-    <div id="map"></div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue';
-import L from 'leaflet';
+import { onMounted, ref, computed } from 'vue'; // Vue Composition API fonksiyonlari
+import L from 'leaflet'; // Leaflet harita kütüphanesi
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
@@ -92,22 +103,39 @@ const darkMode = ref(false);
 const isPaused = ref(false); // hareket halindeyken duraklatma icin
 const sidebarOpen = ref(true);
 
-const toggleDarkMode = () => {
+const toggleDarkMode = () => { // Dark mode ac kapa
   darkMode.value = !darkMode.value;
 };
 
-const toggleSidebar = () => {
+const toggleSidebar = () => { // Sidebar ac kapa
   sidebarOpen.value = !sidebarOpen.value;
 };
 
+const togglePause = () => {
+  if (isPaused.value && activeIcao.value) {
+    const path = flightPaths.value[activeIcao.value];
+    const step = animationSteps.value[activeIcao.value];
+
+    // Eğer rota bittiyse baştan başlat
+    if (path && step + 1 >= path.length) {
+      animationSteps.value[activeIcao.value] = 0;
+      clearAllRoutes();
+      drawFullRoute(activeIcao.value);
+    }
+  }
+  isPaused.value = !isPaused.value;
+};
+
 // GUZERGAH GORSELI
-const staticRoutes = {};
-const activeRoutes = {};
-const terminalMarkers = {};
+const staticRoutes = {}; // tüm rota (arka plan)
+const activeRoutes = {}; // gidilen rota (kalın çizgi)
+const terminalMarkers = {}; // başlangıç ve bitiş işaretleri
 
 let map = null;
 
-// COMPUTED: Liste aramaya göre filtrelenir
+// COMPUTED DEGERLER
+
+// Aramaya göre uçuş filtreleme
 const filteredFlights = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return Object.values(currentFlights.value).filter(f =>
@@ -115,20 +143,20 @@ const filteredFlights = computed(() => {
   );
 });
 
-// COMPUTED: Secilen uçuş verisi
+// Seçili uçuş objesi
 const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
 
 // Haritadaki tüm eski rotaları siler
 const clearAllRoutes = () => {
-  Object.keys(staticRoutes).forEach(key => {
+  Object.keys(staticRoutes).forEach(key => {   // Statik rotaları kaldır
     if (staticRoutes[key]) map.removeLayer(staticRoutes[key]);
     delete staticRoutes[key];
   });
-  Object.keys(activeRoutes).forEach(key => {
+  Object.keys(activeRoutes).forEach(key => {   // Aktif rotaları kaldır
     if (activeRoutes[key]) map.removeLayer(activeRoutes[key]);
     delete activeRoutes[key];
   });
-  Object.keys(terminalMarkers).forEach(key => {
+  Object.keys(terminalMarkers).forEach(key => {   // Başlangıç ve bitiş markerlarını kaldır
     if (terminalMarkers[key]) {
       terminalMarkers[key].forEach(layer => map.removeLayer(layer));
     }
@@ -137,28 +165,31 @@ const clearAllRoutes = () => {
 };
 
 const drawFullRoute = (icao) => {
+  // Eski çizimleri temizle
   if (staticRoutes[icao]) map.removeLayer(staticRoutes[icao]);
   if (activeRoutes[icao]) map.removeLayer(activeRoutes[icao]);
   if (terminalMarkers[icao]) {
     terminalMarkers[icao].forEach(m => map.removeLayer(m));
   }
 
+  // Tüm koordinatları al
   const allPoints = flightPaths.value[icao].map(p => [p.lat, p.lon]);
   const currentStep = animationSteps.value[icao];
 
-  staticRoutes[icao] = L.polyline(allPoints, {
+  staticRoutes[icao] = L.polyline(allPoints, {   // Tam rota (ince mavi çizgi)
     color: '#0077b6', //mavi 
     weight: 2,
     opacity: 0.5
   }).addTo(map);
 
-  const pointsSoFar = allPoints.slice(0, currentStep + 1);
+  const pointsSoFar = allPoints.slice(0, currentStep + 1);   // Şimdiye kadar gidilen rota (kalın mor çizgi)
   activeRoutes[icao] = L.polyline(pointsSoFar, {
     color: '#9381ff', // violet
     weight: 4,
     opacity: 1
   }).addTo(map);
 
+  // Başlangıç ve bitiş noktaları
   const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
   const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
 
@@ -168,6 +199,7 @@ const drawFullRoute = (icao) => {
 };
 
 onMounted(async () => {
+  // Dünya sınırları
   const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
 
   map = L.map('map', {
@@ -182,9 +214,11 @@ onMounted(async () => {
   }).addTo(map);
 
   try {
-    const response = await fetch('/ucus_tamamlandi.json');
+    // JSON veri yükle
+    const response = await fetch('/ucus_mega_global.json');
     const data = await response.json();
 
+    // ICAO'ya göre grupla
     const grouped = data.reduce((acc, row) => {
       if (!acc[row.icao24]) acc[row.icao24] = [];
       acc[row.icao24].push(row);
@@ -193,7 +227,7 @@ onMounted(async () => {
 
     flightPaths.value = grouped;
 
-    const planeIcon = L.divIcon({
+    const planeIcon = L.divIcon({  // Uçak marker icon
       html: `<div class="moving-plane">✈</div>`,
       className: 'plane-icon',
       iconSize: [40, 40],
@@ -216,7 +250,7 @@ onMounted(async () => {
           sidebarOpen.value = true;
 
           if (activeIcao.value === icao) {
-            isPaused.value = !isPaused.value;
+            togglePause();
           } else {
             clearAllRoutes();
             animationSteps.value[icao] = 0;
@@ -235,8 +269,9 @@ onMounted(async () => {
         const path = flightPaths.value[icao];
         const step = animationSteps.value[icao];
 
+        // Rota bittiyse durdur
         if (step + 1 >= path.length) {
-          activeIcao.value = null;
+          isPaused.value = true;
           return;
         }
 
@@ -268,7 +303,7 @@ onMounted(async () => {
   }
 });
 
-const focusFlight = (f) => {
+const focusFlight = (f) => { // f = seçilen uçuş objesi (callsign, lat, lon, icao vs.)
   if (f.lat && f.lon) {
     sidebarOpen.value = true;
 
@@ -318,10 +353,17 @@ body {
   color: #333;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #ccc;
   z-index: 1000;
   transition: width 0.3s ease, min-width 0.3s ease, background 0.3s, color 0.3s;
   overflow: hidden;
+}
+
+.sidebar.left {
+  border-right: 1px solid #ccc;
+}
+
+.sidebar.right {
+  border-left: 1px solid #ccc;
 }
 
 .sidebar.collapsed {
@@ -370,7 +412,14 @@ body {
 .sidebar.dark {
   background: #1a1a2e;
   color: #e0e0e0;
-  border-right-color: #333;
+}
+
+.sidebar.dark.left {
+  border-right: 1px solid #333;
+}
+
+.sidebar.dark.right {
+  border-left: 1px solid #333;
 }
 
 .sidebar-header {
@@ -399,6 +448,28 @@ body {
   padding: 4px 10px;
   cursor: pointer;
   font-size: 16px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #888;
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.close-button:hover {
+  color: #f44336;
+}
+
+.sidebar.dark .close-button {
+  color: #aaa;
+}
+
+.sidebar.dark .close-button:hover {
+  color: #ff5252;
 }
 
 .sidebar-header h3 {
@@ -447,12 +518,22 @@ body {
   border-bottom-color: #2a2a4a;
 }
 
-.flight-list li:hover {
+.flight-list li:hover,
+.flight-list li.active {
   background: #fec3a6;
 }
 
-.sidebar.dark .flight-list li:hover {
+.flight-list li.active {
+  border-left: 4px solid #9381ff;
+}
+
+.sidebar.dark .flight-list li:hover,
+.sidebar.dark .flight-list li.active {
   background: #0f3460;
+}
+
+.sidebar.dark .flight-list li.active {
+  border-left-color: #9381ff;
 }
 
 .callsign {
