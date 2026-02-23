@@ -75,6 +75,9 @@
               </div>
             </div>
           </div>
+          <button class="locate-button" @click="recenterMap" :class="{ dark: darkMode }">
+            Uçağa Odaklan
+          </button>
           <button class="pause-button" @click="togglePause" :class="{ dark: darkMode, paused: isPaused }">
             {{ isPaused ? 'Hareketi Başlat' : 'Hareketi Durdur' }}
           </button>
@@ -124,6 +127,15 @@ const togglePause = () => {
     }
   }
   isPaused.value = !isPaused.value;
+};
+
+const recenterMap = () => {
+  if (selectedFlight.value) {
+    map.setView([selectedFlight.value.lat, selectedFlight.value.lon], 8, { //zoom seviyesi 8 ama degisebilir
+      animate: true, //gecis keskin degil
+      duration: 1 // kayma 1 saniye surer
+    });
+  }
 };
 
 // GUZERGAH GORSELI
@@ -313,7 +325,7 @@ const focusFlight = (f) => { // f = seçilen uçuş objesi (callsign, lat, lon, 
     activeIcao.value = f.icao24;
     drawFullRoute(f.icao24);
 
-    map.setView([f.lat, f.lon], 12, {
+    map.setView([f.lat, f.lon], 8, {
       animate: true,
       duration: 1 // saniye cinsinden akıcı geçiş
     });
@@ -691,7 +703,7 @@ body {
 }
 
 .pause-button {
-  margin-top: 10px;
+  margin-top: -15px;
   padding: 12px;
   border-radius: 8px;
   border: none;
@@ -712,5 +724,35 @@ body {
 
 .pause-button.dark {
   opacity: 0.9;
+}
+
+.locate-button {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #9381ff;
+  background: white;
+  color: #9381ff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.locate-button:hover {
+  background: #f0eeff;
+}
+
+.locate-button.dark {
+  background: #1a1a2e;
+  color: #9381ff;
+  border-color: #9381ff;
+}
+
+.locate-button.dark:hover {
+  background: #2a2a4a;
 }
 </style>
