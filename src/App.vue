@@ -75,12 +75,14 @@
               </div>
             </div>
           </div>
-          <button class="locate-button" @click="recenterMap" :class="{ dark: darkMode }">
-            Uçağa Odaklan
-          </button>
+          <button class="locate-button" @click="recenterMap" :class="{ dark: darkMode }"> Uçağa Odaklan</button>
+          <button class="returnhome-button" @click="returnhome" :class="{ dark: darkMode }"> Ana Merkeze Dön </button>
           <button class="pause-button" @click="togglePause" :class="{ dark: darkMode, paused: isPaused }">
             {{ isPaused ? 'Hareketi Başlat' : 'Hareketi Durdur' }}
           </button>
+          <div v-if="nearestAirport" class="nearest-airport-info"> En Yakın Acil İniş: <strong>{{ nearestAirport.name }}
+              ({{ nearestAirport.id }})</strong>
+          </div>
         </div>
       </div>
     </div>
@@ -88,12 +90,11 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'; // Vue Composition API fonksiyonlari
-import L from 'leaflet'; // Leaflet harita kütüphanesi
+import { onMounted, ref, computed } from 'vue';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
-
 
 // REAKTİF DEGİSKENLER 
 const searchQuery = ref('');
@@ -103,23 +104,38 @@ const flightPaths = ref({});
 const animationSteps = ref({});
 const activeIcao = ref(null);
 const darkMode = ref(false);
-const isPaused = ref(false); // hareket halindeyken duraklatma icin
+const isPaused = ref(false);  // hareket halindeyken duraklatma icin
 const sidebarOpen = ref(true);
+const isReturning = ref(false);
+const airports = ref([]); // Havalimanları icin 
 
-const toggleDarkMode = () => { // Dark mode ac kapa
-  darkMode.value = !darkMode.value;
+// en yakin havalimanı hesaplama
+const getNearestAirport = (planeLat, planeLon) => {
+  if (!airports.value.length) return null;
+
+  return airports.value.reduce((nearest, airport) => {
+    // oklid mesafesi hesaplama
+    const distToNearest = Math.sqrt(Math.pow(planeLat - nearest.lat, 2) + Math.pow(planeLon - nearest.lon, 2));
+    const distToCurr = Math.sqrt(Math.pow(planeLat - airport.lat, 2) + Math.pow(planeLon - airport.lon, 2));
+    return distToCurr < distToNearest ? airport : nearest;
+  });
 };
 
-const toggleSidebar = () => { // Sidebar ac kapa
-  sidebarOpen.value = !sidebarOpen.value;
-};
+// Seçili ucagin her hareketinde en yakın havalimanını hesaplayama
+const nearestAirport = computed(() => {
+  if (selectedFlight.value && airports.value.length > 0) {
+    return getNearestAirport(selectedFlight.value.lat, selectedFlight.value.lon);
+  }
+  return null;
+});
+
+const toggleDarkMode = () => { darkMode.value = !darkMode.value; };
+const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value; };
 
 const togglePause = () => {
   if (isPaused.value && activeIcao.value) {
     const path = flightPaths.value[activeIcao.value];
     const step = animationSteps.value[activeIcao.value];
-
-    // Eğer rota bittiyse baştan başlat
     if (path && step + 1 >= path.length) {
       animationSteps.value[activeIcao.value] = 0;
       clearAllRoutes();
@@ -131,21 +147,26 @@ const togglePause = () => {
 
 const recenterMap = () => {
   if (selectedFlight.value) {
-    map.setView([selectedFlight.value.lat, selectedFlight.value.lon], 8, { //zoom seviyesi 8 ama degisebilir
-      animate: true, //gecis keskin degil
-      duration: 1 // kayma 1 saniye surer
+    map.setView([selectedFlight.value.lat, selectedFlight.value.lon], 8, {
+      animate: true, // harita kayarak gidiyor
+      duration: 1 // kayma islemi 1 saniye 
     });
   }
 };
 
+const returnhome = () => {
+  if (activeIcao.value) {
+    isPaused.value = false;
+    isReturning.value = true;
+  }
+};
+
 // GUZERGAH GORSELI
-const staticRoutes = {}; // tüm rota (arka plan)
-const activeRoutes = {}; // gidilen rota (kalın çizgi)
-const terminalMarkers = {}; // başlangıç ve bitiş işaretleri
+const staticRoutes = {};
+const activeRoutes = {};
+const terminalMarkers = {};
 
 let map = null;
-
-// COMPUTED DEGERLER
 
 // Aramaya göre uçuş filtreleme
 const filteredFlights = computed(() => {
@@ -158,50 +179,28 @@ const filteredFlights = computed(() => {
 // Seçili uçuş objesi
 const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
 
-// Haritadaki tüm eski rotaları siler
 const clearAllRoutes = () => {
-  Object.keys(staticRoutes).forEach(key => {   // Statik rotaları kaldır
-    if (staticRoutes[key]) map.removeLayer(staticRoutes[key]);
-    delete staticRoutes[key];
-  });
-  Object.keys(activeRoutes).forEach(key => {   // Aktif rotaları kaldır
-    if (activeRoutes[key]) map.removeLayer(activeRoutes[key]);
-    delete activeRoutes[key];
-  });
-  Object.keys(terminalMarkers).forEach(key => {   // Başlangıç ve bitiş markerlarını kaldır
-    if (terminalMarkers[key]) {
-      terminalMarkers[key].forEach(layer => map.removeLayer(layer));
-    }
+  Object.keys(staticRoutes).forEach(key => { if (staticRoutes[key]) map.removeLayer(staticRoutes[key]); delete staticRoutes[key]; });
+  Object.keys(activeRoutes).forEach(key => { if (activeRoutes[key]) map.removeLayer(activeRoutes[key]); delete activeRoutes[key]; });
+  Object.keys(terminalMarkers).forEach(key => {
+    if (terminalMarkers[key]) terminalMarkers[key].forEach(layer => map.removeLayer(layer));
     delete terminalMarkers[key];
   });
 };
 
 const drawFullRoute = (icao) => {
-  // Eski çizimleri temizle
   if (staticRoutes[icao]) map.removeLayer(staticRoutes[icao]);
   if (activeRoutes[icao]) map.removeLayer(activeRoutes[icao]);
-  if (terminalMarkers[icao]) {
-    terminalMarkers[icao].forEach(m => map.removeLayer(m));
-  }
+  if (terminalMarkers[icao]) terminalMarkers[icao].forEach(m => map.removeLayer(m));
 
-  // Tüm koordinatları al
   const allPoints = flightPaths.value[icao].map(p => [p.lat, p.lon]);
   const currentStep = animationSteps.value[icao];
 
-  staticRoutes[icao] = L.polyline(allPoints, {   // Tam rota (ince mavi çizgi)
-    color: '#0077b6', //mavi 
-    weight: 2,
-    opacity: 0.5
-  }).addTo(map);
+  staticRoutes[icao] = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 }).addTo(map);
 
-  const pointsSoFar = allPoints.slice(0, currentStep + 1);   // Şimdiye kadar gidilen rota (kalın mor çizgi)
-  activeRoutes[icao] = L.polyline(pointsSoFar, {
-    color: '#9381ff', // violet
-    weight: 4,
-    opacity: 1
-  }).addTo(map);
+  const pointsSoFar = allPoints.slice(0, currentStep + 1);
+  activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 }).addTo(map);
 
-  // Başlangıç ve bitiş noktaları
   const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
   const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
 
@@ -211,45 +210,63 @@ const drawFullRoute = (icao) => {
 };
 
 onMounted(async () => {
-  // Dünya sınırları
-  const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
+  const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180)); // Dünya sınırları
 
-  map = L.map('map', {
-    maxBounds: worldBounds,
-    maxBoundsViscosity: 1.0,
-    minZoom: 2
-  }).setView([20, 0], 2);
+  // harita: sınırlar sabit, zoom seviyesi 2 
+  map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
-    noWrap: true //sonsuz dongu kapandı
+    noWrap: true // haritanin sonsuz tekrarlaması yatay
   }).addTo(map);
 
   try {
-    // JSON veri yükle
-    const response = await fetch('/ucus_mega_global.json');
+    const airResponse = await fetch('/airports_library_v6.json');     // Havalimanı verileri
+    airports.value = await airResponse.json();
+
+    // her havalimanı için özel icon
+    airports.value.forEach(ap => {
+      const airportIcon = L.divIcon({
+        html: `
+          <div class="airport-marker">
+            <div class="airport-dot"></div>
+            <span class="airport-label">${ap.id}</span>
+          </div>`,
+        className: 'custom-airport',
+        iconSize: [30, 30]
+      });
+
+      // pop up
+      L.marker([ap.lat, ap.lon], { icon: airportIcon })
+        .addTo(map)
+        .bindPopup(`<b>${ap.name}</b><br>Acil İniş Noktası`);
+    });
+
+    const response = await fetch('/ucus_final_v7.json'); //uçuş verileri
     const data = await response.json();
 
-    // ICAO'ya göre grupla
+    // icao ya göre gruplama
     const grouped = data.reduce((acc, row) => {
       if (!acc[row.icao24]) acc[row.icao24] = [];
       acc[row.icao24].push(row);
       return acc;
     }, {});
 
-    flightPaths.value = grouped;
+    flightPaths.value = grouped; // tüm rotalar reaktif değişkene kaydediliyor
 
-    const planeIcon = L.divIcon({  // Uçak marker icon
+    // ucak iconu
+    const planeIcon = L.divIcon({
       html: `<div class="moving-plane">✈</div>`,
       className: 'plane-icon',
       iconSize: [40, 40],
       iconAnchor: [20, 20]
     });
 
+    // ucaklar ilk konumlarına yerlestirme
     Object.keys(grouped).forEach(icao => {
       const firstPoint = grouped[icao][0];
       currentFlights.value[icao] = firstPoint;
-      animationSteps.value[icao] = 0;
+      animationSteps.value[icao] = 0; // animasyon 0. adımdan baslıyor
 
       if (firstPoint.lat && firstPoint.lon) {
         const marker = L.marker([firstPoint.lat, firstPoint.lon], {
@@ -258,81 +275,93 @@ onMounted(async () => {
         }).addTo(map);
 
         marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
+          L.DomEvent.stopPropagation(e); // Tıklamanın haritaya geçmesini engelleme
           sidebarOpen.value = true;
 
           if (activeIcao.value === icao) {
-            togglePause();
+            togglePause(); // Aynı uçaksa durdur/başlat
           } else {
-            clearAllRoutes();
-            animationSteps.value[icao] = 0;
-            activeIcao.value = icao;
-            isPaused.value = false;
-            drawFullRoute(icao);
+            clearAllRoutes(); // Eski çizgileri sil
+            animationSteps.value[icao] = 0; // Başa dön
+            activeIcao.value = icao; // Yeni aktif uçağı belirle
+            isPaused.value = false; // Hareket ettir
+            drawFullRoute(icao); // Rotayı haritaya çiz
           }
         });
-        markers[icao] = marker;
+        markers[icao] = marker; // Marker'ı referans olarak sakla
       }
     });
 
+    // ANİMSYON DÖNGÜSÜ
     setInterval(() => {
       if (activeIcao.value && flightPaths.value[activeIcao.value] && !isPaused.value) {
         const icao = activeIcao.value;
         const path = flightPaths.value[icao];
         const step = animationSteps.value[icao];
 
-        // Rota bittiyse durdur
-        if (step + 1 >= path.length) {
-          isPaused.value = true;
-          return;
-        }
+        // GERİ DÖNÜŞ
+        if (isReturning.value) {
+          if (step <= 0) { // Başlangıca geldiyse dur
+            isReturning.value = false;
+            isPaused.value = true; return;
+          }
+          const prevStep = step - 1; // Bir önceki adıma 
+          const point = path[prevStep];
+          animationSteps.value[icao] = prevStep;
+          currentFlights.value[icao] = point;
 
-        const nextStep = step + 1;
-        const point = path[nextStep];
+          if (markers[icao]) {
+            markers[icao].slideTo([point.lat, point.lon], { duration: 100 });
+            markers[icao].setRotationAngle((point.heading || 0) + 100); // ilk aciya +180
+            if (activeRoutes[icao]) {
+              const currentLatLngs = activeRoutes[icao].getLatLngs(); // Mevcut çizgi
+              currentLatLngs.pop(); // en sondaki koord silinir
+              activeRoutes[icao].setLatLngs(currentLatLngs); // listenin kalanı haritada
+            }
+          }
+        } else { // İLERİ GİDİŞ
+          if (step + 1 >= path.length) { // sonraki adımda rota bitiyorsa ya da sonsa
+            isPaused.value = true;
+            return;
+          }
+          const nextStep = step + 1; // sonraki adımın numarası 
+          const point = path[nextStep];
 
-        animationSteps.value[icao] = nextStep;
-        currentFlights.value[icao] = point;
+          // Uçağın mevcut adım numarası ve anlık veri güncellendi
+          animationSteps.value[icao] = nextStep;
+          currentFlights.value[icao] = point;
+          if (markers[icao]) {
+            const newPos = [point.lat, point.lon]; // Yeni koordinatlar
 
-        if (markers[icao]) {
-          const newPos = [point.lat, point.lon];
+            markers[icao].slideTo(newPos, { duration: 100 });
+            // Uçağı yeni konumuna 100 milisaniye sürecek şekilde kaydırarak hareket ettirme
 
-          markers[icao].slideTo(newPos, {
-            duration: 100,
-            keepAtCenter: false
-          });
-
-          markers[icao].setRotationAngle((point.heading || 0) - 80);
-
-          if (activeRoutes[icao]) {
-            activeRoutes[icao].addLatLng(newPos);
+            markers[icao].setRotationAngle((point.heading || 0) - 80); // Uçağı gidiş yönüne göre döndürme
+            if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
           }
         }
       }
-    }, 100);
-
+    }, 100); // saniyede 10 kez
   } catch (error) {
     console.error("Hata:", error);
   }
 });
 
-const focusFlight = (f) => { // f = seçilen uçuş objesi (callsign, lat, lon, icao vs.)
+const focusFlight = (f) => {
   if (f.lat && f.lon) {
     sidebarOpen.value = true;
-
     clearAllRoutes();
     isPaused.value = false;
     animationSteps.value[f.icao24] = 0;
     activeIcao.value = f.icao24;
-    drawFullRoute(f.icao24);
-
+    drawFullRoute(f.icao24); // Uçağın gideceği tüm yol (mavi ince çizgi)
     map.setView([f.lat, f.lon], 8, {
-      animate: true,
-      duration: 1 // saniye cinsinden akıcı geçiş
+      animate: true, // akıcı gecis
+      duration: 1 // odaklanma: 1 saniye
     });
   }
 };
 </script>
-
 <style>
 * {
   box-sizing: border-box;
@@ -371,7 +400,7 @@ body {
 }
 
 .sidebar.left {
-  border-right: 1px solid #ccc;
+  border-right: 1px solid #5a2121;
 }
 
 .sidebar.right {
@@ -621,7 +650,7 @@ body {
 .details-card {
   background: #fff;
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
@@ -726,8 +755,12 @@ body {
   opacity: 0.9;
 }
 
+.pause-button.paused:hover {
+  background: #13c35d;
+}
+
 .locate-button {
-  margin-top: 10px;
+  margin-top: -15px;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid #9381ff;
@@ -754,5 +787,59 @@ body {
 
 .locate-button.dark:hover {
   background: #2a2a4a;
+}
+
+.returnhome-button {
+  margin-top: -15px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ff0000;
+  background: white;
+  color: #ff0000;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.returnhome-button:hover {
+  background: #e81111;
+  color: #ffffff;
+}
+
+.returnhome-button.dark {
+  background: #ff0000;
+  color: #ffffff;
+  border-color: #ff0000;
+}
+
+.returnhome-button.dark:hover {
+  background: #ff7070;
+}
+
+.airport-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.airport-dot {
+  width: 8px;
+  height: 8px;
+  background: #f1c40f;
+  border: 2px solid #2c3e50;
+  border-radius: 50%;
+}
+
+.airport-label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #2c3e50;
+  text-shadow: 1px 1px 0px white;
+  margin-top: 2px;
 }
 </style>

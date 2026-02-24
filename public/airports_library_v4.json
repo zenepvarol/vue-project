@@ -1,0 +1,191 @@
+[
+  {
+    "id": "IST",
+    "name": "Istanbul Airport",
+    "city": "Istanbul",
+    "country": "Turkey",
+    "lat": 41.2752,
+    "lon": 28.7519,
+    "type": "Hub"
+  },
+  {
+    "id": "SAW",
+    "name": "Sabiha Gokcen Airport",
+    "city": "Istanbul",
+    "country": "Turkey",
+    "lat": 40.8986,
+    "lon": 29.3092,
+    "type": "Hub"
+  },
+  {
+    "id": "TEQ",
+    "name": "Corlu Airport",
+    "city": "Tekirdag",
+    "country": "Turkey",
+    "lat": 41.1311,
+    "lon": 27.9217,
+    "type": "Emergency"
+  },
+  {
+    "id": "YEI",
+    "name": "Yenisehir Airport",
+    "city": "Bursa",
+    "country": "Turkey",
+    "lat": 40.2552,
+    "lon": 29.5625,
+    "type": "Emergency"
+  },
+  {
+    "id": "BZI",
+    "name": "Balikesir Airport",
+    "city": "Balikesir",
+    "country": "Turkey",
+    "lat": 39.6186,
+    "lon": 27.9178,
+    "type": "Emergency"
+  },
+  {
+    "id": "KZR",
+    "name": "Zafer Airport",
+    "city": "Kutahya/Afyon",
+    "country": "Turkey",
+    "lat": 39.1114,
+    "lon": 30.1303,
+    "type": "Emergency"
+  },
+  {
+    "id": "DLM",
+    "name": "Dalaman Airport",
+    "city": "Mugla",
+    "country": "Turkey",
+    "lat": 36.7131,
+    "lon": 28.7925,
+    "type": "Regional"
+  },
+  {
+    "id": "BJV",
+    "name": "Milas-Bodrum Airport",
+    "city": "Mugla",
+    "country": "Turkey",
+    "lat": 37.2506,
+    "lon": 27.6643,
+    "type": "Regional"
+  },
+  {
+    "id": "ADB",
+    "name": "Adnan Menderes Airport",
+    "city": "Izmir",
+    "country": "Turkey",
+    "lat": 38.2924,
+    "lon": 27.157,
+    "type": "Hub"
+  },
+  {
+    "id": "AYT",
+    "name": "Antalya Airport",
+    "city": "Antalya",
+    "country": "Turkey",
+    "lat": 36.9003,
+    "lon": 30.8005,
+    "type": "Hub"
+  },
+  {
+    "id": "GZP",
+    "name": "Gazipasa Airport",
+    "city": "Alanya",
+    "country": "Turkey",
+    "lat": 36.2993,
+    "lon": 32.3014,
+    "type": "Regional"
+  },
+  {
+    "id": "LIS",
+    "name": "Lisbon Humberto Delgado",
+    "city": "Lisbon",
+    "country": "Portugal",
+    "lat": 38.7742,
+    "lon": -9.1342,
+    "type": "Hub"
+  },
+  {
+    "id": "OPO",
+    "name": "Porto Francisco Sa Carneiro",
+    "city": "Porto",
+    "country": "Portugal",
+    "lat": 41.2421,
+    "lon": -8.6786,
+    "type": "Hub"
+  },
+  {
+    "id": "FAO",
+    "name": "Faro Airport",
+    "city": "Faro",
+    "country": "Portugal",
+    "lat": 37.0176,
+    "lon": -7.9697,
+    "type": "Regional"
+  },
+  {
+    "id": "BJA",
+    "name": "Beja Airport",
+    "city": "Beja",
+    "country": "Portugal",
+    "lat": 38.0789,
+    "lon": -7.9323,
+    "type": "Emergency"
+  },
+  {
+    "id": "FNC",
+    "name": "Madeira Airport",
+    "city": "Funchal",
+    "country": "Portugal",
+    "lat": 32.6939,
+    "lon": -16.7744,
+    "type": "Regional"
+  },
+  {
+    "id": "PDL",
+    "name": "Ponta Delgada",
+    "city": "Azores",
+    "country": "Portugal",
+    "lat": 37.7412,
+    "lon": -25.6979,
+    "type": "Regional"
+  },
+  {
+    "id": "FCO",
+    "name": "Fiumicino Airport",
+    "city": "Rome",
+    "country": "Italy",
+    "lat": 41.8003,
+    "lon": 12.2389,
+    "type": "Hub"
+  },
+  {
+    "id": "BCN",
+    "name": "Barcelona El Prat",
+    "city": "Barcelona",
+    "country": "Spain",
+    "lat": 41.2974,
+    "lon": 2.0833,
+    "type": "Hub"
+  },
+  {
+    "id": "MAD",
+    "name": "Adolfo Suarez Barajas",
+    "city": "Madrid",
+    "country": "Spain",
+    "lat": 40.4839,
+    "lon": -3.568,
+    "type": "Hub"
+  },
+  {
+    "id": "SVQ",
+    "name": "Seville Airport",
+    "city": "Seville",
+    "country": "Spain",
+    "lat": 37.418,
+    "lon": -5.8931,
+    "type": "Emergency"
+  }
+]
