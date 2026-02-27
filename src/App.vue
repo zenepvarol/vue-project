@@ -5,7 +5,7 @@
       <div class="sidebar-header" :class="{ dark: darkMode }">
         <div class="header-top">
           <h3>Uçuş Listesi</h3>
-          <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
+          <button class="dark-toggle" @click="toggleDarkMode" title="Modu Değiştir">
             {{ darkMode ? '☀️' : '🌙' }}
           </button>
         </div>
@@ -34,7 +34,7 @@
       <div class="sidebar-header" :class="{ dark: darkMode }">
         <div class="header-top">
           <h3>Uçuş Detayları</h3>
-          <button class="close-button" @click="activeIcao = null" :title="'Kapat'">✕</button>
+          <button class="close-button" @click="activeIcao = null" title="Kapat">✕</button>
         </div>
       </div>
 
@@ -46,9 +46,7 @@
               <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
               <span class="model-subtitle">{{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}</span>
             </div>
-            <button class="locate-mini-button" @click="recenterMap" title="Uçağa Odaklan">
-              ➣
-            </button>
+            <button class="locate-mini-button" @click="recenterMap" title="Uçağa Odaklan">➣</button>
           </div>
 
           <div class="details-grid">
@@ -83,7 +81,7 @@
                 km</span>
             </div>
 
-            <div v-if="selectedFlight.trip_distance" class="detail-item progress-container">
+            <div v-if="selectedFlight.trip_distance > 0" class="detail-item progress-container">
               <label>Yolun %{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}
                 tamamlandı</label>
               <div class="progress-bar">
@@ -95,38 +93,30 @@
           </div>
 
           <div class="action-section">
-            <button v-if="!isReturningToStart && isPaused && animationSteps[activeIcao] > 0" class="returnhome-button"
-              @click="returnToStart" :class="{ dark: darkMode }">
+            <button v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency"
+              class="returnhome-button" @click="returnToStart" :class="{ dark: darkMode }">
               ANA MERKEZE DÖN
             </button>
 
-            <button v-else-if="isPaused && animationSteps[activeIcao] === 0" class="pause-button paused"
+            <button v-if="isPaused && animationSteps[activeIcao] === 0" class="pause-button paused"
               :class="{ dark: darkMode }" @click="togglePause">
               KALKIŞ ONAYI VER
             </button>
 
-            <template v-else-if="!isPaused && !isReturningToStart">
-              <button class="returnhome-button" @click="returnToStart" :class="{ dark: darkMode }">
-                ANA MERKEZE DÖN
-              </button>
-
-              <div v-if="nearestAirport" class="emergency-section">
-                <div class="nearest-airport-info">
-                  En Yakın Güvenli Nokta: <strong>{{ nearestAirport.name }}</strong>
-                </div>
-                <button v-if="!isEmergency" class="emergency-button" @click="startEmergencyLanding">
-                  ACİL İNİŞ YAP
-                </button>
+            <div v-if="!isPaused && !isReturningToStart && !isEmergency && nearestAirport" class="emergency-section">
+              <div class="nearest-airport-info">
+                En Yakın Güvenli Nokta: <strong>{{ nearestAirport.name }}</strong>
               </div>
-            </template>
+              <button class="emergency-button" @click="startEmergencyLanding">
+                ACİL İNİŞ YAP
+              </button>
+            </div>
           </div>
 
-          <div v-if="isEmergency" class="emergency-status-note"
-            style="margin-top: 10px; text-align: center; color: #e74c3c;">
+          <div v-if="isEmergency" class="emergency-status-note" style="color: #e74c3c;">
             Acil iniş noktasına gidiliyor.
           </div>
-          <div v-if="isReturningToStart" class="emergency-status-note"
-            style="margin-top: 10px; text-align: center; color: #3498db;">
+          <div v-if="isReturningToStart" class="emergency-status-note" style="color: #3498db;">
             Ana merkeze dönüş yapılıyor.
           </div>
 
@@ -143,7 +133,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
-
 // REAKTİF DEGİSKENLER 
 const searchQuery = ref('');
 const currentFlights = ref({});
@@ -159,11 +148,9 @@ const isEmergency = ref(false);
 const emergencyRoute = ref(null);
 const isReturningToStart = ref(false);
 
-// YENİ: Rota Geçmişini Temizleme Fonksiyonu
 const resetActivePath = (icao) => {
   if (activeRoutes[icao]) {
     map.removeLayer(activeRoutes[icao]);
-    // Uçağın o anki konumundan başlayan yeni bir mor çizgi oluşturur
     const currentPos = [currentFlights.value[icao].lat, currentFlights.value[icao].lon];
     activeRoutes[icao] = L.polyline([currentPos], { color: '#9381ff', weight: 4, opacity: 1 }).addTo(map);
   }
@@ -182,16 +169,12 @@ const returnToStart = () => {
   if (!activeIcao.value) return;
 
   const icao = activeIcao.value;
-  resetActivePath(icao); 
+  resetActivePath(icao);
 
-  isReturningToStart.value = true; 
-  isEmergency.value = false;       
+  isReturningToStart.value = true;
+  isEmergency.value = false;
   isPaused.value = false;
-  
-  // ÖNEMLİ: Animasyon adımını da sıfırlığa hazırlıyoruz
-  // ama uçak fiziksel olarak henüz merkeze varmadığı için 
-  // varış anında sıfırlamak daha güvenli (aşağıdaki setInterval kısmında yaptık).
-  
+
   if (emergencyRoute.value) {
     map.removeLayer(emergencyRoute.value);
     emergencyRoute.value = null;
@@ -361,13 +344,14 @@ onMounted(async () => {
         markers[icao] = marker;
       }
     });
-setInterval(() => {
+
+    setInterval(() => {
       if (activeIcao.value && flightPaths.value[activeIcao.value] && !isPaused.value) {
         const icao = activeIcao.value;
         const path = flightPaths.value[icao];
         const step = animationSteps.value[icao];
 
-        // 1. ACİL İNİŞ MANTIĞI
+        // ACİL İNİŞ 
         if (isEmergency.value && nearestAirport.value) {
           const plane = currentFlights.value[icao];
           const target = nearestAirport.value;
@@ -378,93 +362,87 @@ setInterval(() => {
 
           if (dist > moveStep) {
             const nextPos = [plane.lat + (dx / dist) * moveStep, plane.lon + (dy / dist) * moveStep];
+
+            currentFlights.value[icao].baroaltitude = Math.max(10, plane.baroaltitude - 50);
+            currentFlights.value[icao].velocity = Math.max(15, plane.velocity - 4);
+
             currentFlights.value[icao].lat = nextPos[0];
             currentFlights.value[icao].lon = nextPos[1];
 
             if (markers[icao]) {
-              markers[icao].slideTo(nextPos, { duration: 100 });
+              markers[icao].setLatLng(nextPos);
               markers[icao].setRotationAngle((Math.atan2(dy, dx) * (180 / Math.PI)) - 80);
               if (activeRoutes[icao]) activeRoutes[icao].addLatLng(nextPos);
             }
           } else {
-            // İniş noktasına varıldı
+            currentFlights.value[icao].baroaltitude = 0;
+            currentFlights.value[icao].velocity = 0;
             isPaused.value = true;
             isEmergency.value = false;
-            // Varış noktasını tam eşitle
-            currentFlights.value[icao].lat = target.lat;
-            currentFlights.value[icao].lon = target.lon;
-            if (markers[icao]) markers[icao].setLatLng([target.lat, target.lon]);
-            
             if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
           }
         }
 
-        // 2. ANA MERKEZE DÖNÜŞ MANTIĞI
+        // ANA MERKEZE DÖNÜŞ
         else if (isReturningToStart.value) {
           const plane = currentFlights.value[icao];
-          const target = path[0]; // Rota başlangıcı
+          const target = path[0];
           const dx = target.lat - plane.lat;
           const dy = target.lon - plane.lon;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const moveStep = 0.04; // Dönüş hızı
+          const moveStep = 0.03;
 
           if (dist > moveStep) {
             const nextPos = [plane.lat + (dx / dist) * moveStep, plane.lon + (dy / dist) * moveStep];
+
+            currentFlights.value[icao].baroaltitude = Math.max(10, plane.baroaltitude - 40);
+            currentFlights.value[icao].velocity = Math.max(20, plane.velocity - 3);
+
             currentFlights.value[icao].lat = nextPos[0];
             currentFlights.value[icao].lon = nextPos[1];
 
             if (markers[icao]) {
-              markers[icao].slideTo(nextPos, { duration: 100 });
+              markers[icao].setLatLng(nextPos);
               markers[icao].setRotationAngle((Math.atan2(dy, dx) * (180 / Math.PI)) - 80);
               if (activeRoutes[icao]) activeRoutes[icao].addLatLng(nextPos);
             }
           } else {
-            // Merkeze varıldı - TÜM DEĞERLERİ RESETLE
+            currentFlights.value[icao].baroaltitude = 0;
+            currentFlights.value[icao].velocity = 0;
             isReturningToStart.value = false;
             isPaused.value = true;
-            animationSteps.value[icao] = 0; // İndeksi sıfırla
-            
-            // Konumu tam merkez noktasına sabitle (zıplamayı önler)
-            currentFlights.value[icao] = { ...path[0] };
-            if (markers[icao]) {
-                markers[icao].setLatLng([path[0].lat, path[0].lon]);
-                markers[icao].setRotationAngle((path[0].heading || 0) - 80);
-            }
-
-            if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+            animationSteps.value[icao] = 0;
             clearAllRoutes();
             drawFullRoute(icao);
           }
         }
 
-        // 3. NORMAL İLERLEME (Yeniden Başlatma Dahil)
+        // NORMAL İLERLEME
         else {
-          if (step + 1 >= path.length) { 
-            isPaused.value = true; 
-            return; 
+          if (step + 1 >= path.length) {
+            isPaused.value = true;
+            return;
           }
-          
+
           const nextStep = step + 1;
           const point = path[nextStep];
-          
-          // Güncelleme yapmadan önce mevcut indexi güncelle
+
           animationSteps.value[icao] = nextStep;
           currentFlights.value[icao] = { ...point };
 
           if (markers[icao]) {
             const newPos = [point.lat, point.lon];
-            
-            // Eğer uçak rotadan çok uzaktaysa (zıplama önleyici kilit)
+
+            // Eğer uçak rotadan çok uzaktaysa
             const currentPos = markers[icao].getLatLng();
             const distCheck = Math.sqrt(Math.pow(newPos[0] - currentPos.lat, 2) + Math.pow(newPos[1] - currentPos.lng, 2));
-            
-            if (distCheck > 0.5) { 
-                // Eğer mesafe çok büyükse (rota değişimi sonrası ilk adım gibi), slide yerine direkt ışınla
-                markers[icao].setLatLng(newPos);
+
+            if (distCheck > 0.5) {
+              markers[icao].setLatLng(newPos);
             } else {
-                markers[icao].slideTo(newPos, { duration: 100 });
+              markers[icao].slideTo(newPos, { duration: 100 });
             }
-            
+
             markers[icao].setRotationAngle((point.heading || 0) - 80);
             if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
           }
