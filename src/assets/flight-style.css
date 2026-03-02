@@ -264,6 +264,15 @@ body {
   transition: all 600ms linear;
 }
 
+.moving-plane svg {
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4)); /* Dış gölge */
+  transition: transform 0.1s linear;
+}
+
+.active-plane svg {
+  fill: #ffcc00 !important; /* Seçili uçağı sarı yapabilirsin */
+}
+
 .plane-icon {
   background: none !important;
   border: none !important;
@@ -528,11 +537,16 @@ body {
   box-shadow: 0 0 10px rgba(241, 196, 15, 0.8);
 }
 
+.airport-marker svg {
+  filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.5));
+}
+
 .airport-label {
-  font-size: 10px;
-  font-weight: bold;
-  color: #2c3e50;
-  text-shadow: 1px 1px 0px white;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 9px;
   margin-top: 2px;
 }
 

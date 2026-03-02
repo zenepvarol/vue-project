@@ -6,10 +6,14 @@
         <div class="header-top">
           <h3>Uçuş Listesi</h3>
           <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
-            {{ darkMode ? '☀️' : '🌙' }}
+            <Sun v-if="darkMode" :size="20" />
+            <Moon v-else :size="20" />
           </button>
         </div>
-        <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input" />
+        <div class="search-container">
+          <Search class="search-icon" :size="16" />
+          <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input" />
+        </div>
       </div>
 
       <ul class="flight-list">
@@ -18,13 +22,16 @@
           <div class="flight-info">
             <span class="callsign">{{ f.callsign || 'Bilinmiyor' }}</span>
           </div>
-          <div class="arrow" :style="{ transform: `rotate(${(f.heading || 0) - 80}deg)` }">✈</div>
+          <div class="arrow" :style="{ transform: `rotate(${(f.heading || 0) - 80}deg)` }">
+            <Plane :size="18" />
+          </div>
         </li>
       </ul>
     </div>
 
     <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
-      {{ sidebarOpen ? '◀' : '▶' }}
+      <ChevronLeft v-if="sidebarOpen" />
+      <ChevronRight v-else />
     </button>
 
     <div id="map"></div>
@@ -33,24 +40,32 @@
       <div class="sidebar-header">
         <div class="header-top">
           <h3>Uçuş Detayları</h3>
-          <button class="close-button" @click="activeIcao = null" title="Kapat">✕</button>
+          <button class="close-button" @click="activeIcao = null" title="Kapat">
+            <X :size="20" />
+          </button>
         </div>
       </div>
 
       <div class="flight-details">
         <div class="details-card">
           <div class="details-header">
-            <span class="plane-icon-large">✈</span>
+            <div class="plane-icon-wrapper">
+              <Plane :size="32" class="plane-icon-large" />
+            </div>
             <div class="header-text">
               <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
               <span class="model-subtitle">{{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}</span>
             </div>
-            <button class="locate-mini-button" @click="recenterMap" title="Uçağa Odaklan">➣</button>
+            <button class="locate-mini-button" @click="recenterMap" title="Uçağa Odaklan">
+              <Navigation :size="18" />
+            </button>
           </div>
 
           <div class="details-grid">
-            <div class="detail-item">
-              <label>Durum</label>
+            <div class="detail-item full-width">
+              <label>
+                <Activity :size="14" /> Durum
+              </label>
               <span :style="{
                 color: isEmergency ? '#e74c3c' : (isReturningToStart ? '#3498db' : (isPaused ? '#f39c12' : '#2ecc71')),
                 fontWeight: 'bold'
@@ -65,17 +80,23 @@
 
             <div class="details-row-inline">
               <div class="detail-item">
-                <label>Hız</label>
+                <label>
+                  <Gauge :size="14" /> Hız
+                </label>
                 <span>{{ Math.round(selectedFlight.velocity) }} kt</span>
               </div>
               <div class="detail-item">
-                <label>Rakım</label>
+                <label>
+                  <Mountain :size="14" /> Rakım
+                </label>
                 <span>{{ Math.round(selectedFlight.baroaltitude) }} ft</span>
               </div>
             </div>
 
             <div class="detail-item">
-              <label>Mesafe (Gidilen / Toplam)</label>
+              <label>
+                <MapPin :size="14" /> Mesafe (Gidilen / Toplam)
+              </label>
               <span>{{ Math.round(selectedFlight.distance_from_dep) }} / {{ Math.round(selectedFlight.trip_distance) }}
                 km</span>
             </div>
@@ -94,29 +115,29 @@
           <div class="action-section">
             <button v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency"
               class="returnhome-button" @click="returnToStart">
-              ANA MERKEZE DÖN
+              <RotateCcw :size="16" /> ANA MERKEZE DÖN
             </button>
 
             <button v-if="isPaused && animationSteps[activeIcao] === 0" class="pause-button paused"
               @click="togglePause">
-              KALKIŞ ONAYI VER
+              <Play :size="16" /> KALKIŞ ONAYI VER
             </button>
 
             <div v-if="!isPaused && !isReturningToStart && !isEmergency && nearestAirport" class="emergency-section">
               <div class="nearest-airport-info">
-                En Yakın Güvenli Nokta: <strong>{{ nearestAirport.name }}</strong>
+                <MapPin :size="14" /> En Yakın Güvenli Nokta: <strong>{{ nearestAirport.name }}</strong>
               </div>
               <button class="emergency-button" @click="startEmergencyLanding">
-                ACİL İNİŞ YAP
+                <AlertOctagon :size="16" /> ACİL İNİŞ YAP
               </button>
             </div>
           </div>
 
           <div v-if="isEmergency" class="emergency-status-note" style="color: #e74c3c;">
-            Acil iniş noktasına gidiliyor.
+            <AlertCircle :size="14" /> Acil iniş noktasına gidiliyor.
           </div>
           <div v-if="isReturningToStart" class="emergency-status-note" style="color: #3498db;">
-            Ana merkeze dönüş yapılıyor.
+            <Info :size="14" /> Ana merkeze dönüş yapılıyor.
           </div>
 
         </div>
@@ -124,8 +145,14 @@
     </div>
   </div>
 </template>
-
 <script setup>
+import {
+  Plane, Gauge, Mountain, MapPin, Navigation,
+  AlertOctagon, AlertCircle, Play, RotateCcw,
+  Search, Sun, Moon, X, ChevronLeft, ChevronRight,
+  Activity, Info
+} from 'lucide-vue-next';
+
 import { onMounted, ref, computed } from 'vue';
 import './assets/flight-style.css';
 import L from 'leaflet';
@@ -336,9 +363,15 @@ onMounted(async () => {
 
     airports.value.forEach(ap => {
       const airportIcon = L.divIcon({
-        html: `<div class="airport-marker"><div class="airport-dot"></div><span class="airport-label">${ap.id}</span></div>`,
+        html: `
+<div class="airport-marker">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2ecc71" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+        <span class="airport-label">${ap.id}</span>
+      </div>`,
         className: 'custom-airport',
-        iconSize: [30, 30]
+        iconSize: [40, 40]
       });
       L.marker([ap.lat, ap.lon], { icon: airportIcon }).addTo(map).bindPopup(`<b>${ap.name}</b><br>Acil İniş Noktası`);
     });
@@ -354,7 +387,12 @@ onMounted(async () => {
     flightPaths.value = grouped;
 
     const planeIcon = L.divIcon({
-      html: `<div class="moving-plane">✈</div>`,
+      html: `
+    <div class="moving-plane">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#9381ff" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+      </svg>
+    </div>`,
       className: 'plane-icon',
       iconSize: [40, 40],
       iconAnchor: [20, 20]
