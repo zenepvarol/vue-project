@@ -1,16 +1,15 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="{ 'dark-mode-active': darkMode }">
 
-    <div class="sidebar left" :class="{ dark: darkMode, collapsed: !sidebarOpen }">
-      <div class="sidebar-header" :class="{ dark: darkMode }">
+    <div class="sidebar left" :class="{ collapsed: !sidebarOpen }">
+      <div class="sidebar-header">
         <div class="header-top">
           <h3>Uçuş Listesi</h3>
-          <button class="dark-toggle" @click="toggleDarkMode" title="Modu Değiştir">
+          <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
             {{ darkMode ? '☀️' : '🌙' }}
           </button>
         </div>
-        <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input"
-          :class="{ dark: darkMode }" />
+        <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input" />
       </div>
 
       <ul class="flight-list">
@@ -24,22 +23,22 @@
       </ul>
     </div>
 
-    <button class="sidebar-toggle" :class="{ dark: darkMode, open: sidebarOpen }" @click.stop="toggleSidebar">
+    <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
       {{ sidebarOpen ? '◀' : '▶' }}
     </button>
 
     <div id="map"></div>
 
-    <div v-if="selectedFlight" class="sidebar right" :class="{ dark: darkMode }">
-      <div class="sidebar-header" :class="{ dark: darkMode }">
+    <div v-if="selectedFlight" class="sidebar right">
+      <div class="sidebar-header">
         <div class="header-top">
           <h3>Uçuş Detayları</h3>
           <button class="close-button" @click="activeIcao = null" title="Kapat">✕</button>
         </div>
       </div>
 
-      <div class="flight-details" :class="{ dark: darkMode }">
-        <div class="details-card" :class="{ dark: darkMode }">
+      <div class="flight-details">
+        <div class="details-card">
           <div class="details-header">
             <span class="plane-icon-large">✈</span>
             <div class="header-text">
@@ -94,12 +93,12 @@
 
           <div class="action-section">
             <button v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency"
-              class="returnhome-button" @click="returnToStart" :class="{ dark: darkMode }">
+              class="returnhome-button" @click="returnToStart">
               ANA MERKEZE DÖN
             </button>
 
             <button v-if="isPaused && animationSteps[activeIcao] === 0" class="pause-button paused"
-              :class="{ dark: darkMode }" @click="togglePause">
+              @click="togglePause">
               KALKIŞ ONAYI VER
             </button>
 
@@ -133,7 +132,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
-// REAKTİF DEGİSKENLER 
+
+// --- REAKTİF DEĞİŞKENLER ---
 const searchQuery = ref('');
 const currentFlights = ref({});
 const markers = {};
@@ -148,45 +148,98 @@ const isEmergency = ref(false);
 const emergencyRoute = ref(null);
 const isReturningToStart = ref(false);
 
+const staticRoutes = {};
+const activeRoutes = {};
+const terminalMarkers = {};
+let map = null;
+const routeLayer = L.layerGroup();
+
+
+const getDistance = (p1, p2) => {
+  return Math.sqrt(Math.pow(p1.lat - p2.lat, 2) + Math.pow(p1.lon - p2.lon, 2));
+};
+
+// Ortak Hareket Fonksiyonu
+const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
+  const plane = currentFlights.value[icao];
+  const marker = markers[icao];
+  if (!plane || !marker) return false;
+
+  let nextLat = targetLat;
+  let nextLon = targetLon;
+  let heading = plane.heading || 0;
+
+  if (moveStep > 0) {
+    const dx = targetLat - plane.lat;
+    const dy = targetLon - plane.lon;
+    const dist = getDistance({ lat: plane.lat, lon: plane.lon }, { lat: targetLat, lon: targetLon });
+
+    if (dist > moveStep) {
+      nextLat = plane.lat + (dx / dist) * moveStep;
+      nextLon = plane.lon + (dy / dist) * moveStep;
+      heading = (Math.atan2(dy, dx) * (180 / Math.PI));
+    } else {
+      return true; // Hedefe ulaşıldı
+    }
+  }
+
+  // Veri Güncellenir
+  plane.lat = nextLat;
+  plane.lon = nextLon;
+
+  const newPos = [nextLat, nextLon];
+  if (moveStep === 0) {
+    marker.slideTo(newPos, { duration: 100 });
+  } else {
+    marker.setLatLng(newPos);
+  }
+
+  marker.setRotationAngle(heading - 80);
+  if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
+
+  return false; // Henüz hedefe varılmadı
+};
+
 const resetActivePath = (icao) => {
   if (activeRoutes[icao]) {
-    map.removeLayer(activeRoutes[icao]);
+    routeLayer.removeLayer(activeRoutes[icao]);
     const currentPos = [currentFlights.value[icao].lat, currentFlights.value[icao].lon];
-    activeRoutes[icao] = L.polyline([currentPos], { color: '#9381ff', weight: 4, opacity: 1 }).addTo(map);
+    activeRoutes[icao] = L.polyline([currentPos], { color: '#9381ff', weight: 4, opacity: 1 }).addTo(routeLayer);
   }
 };
 
 const getNearestAirport = (planeLat, planeLon) => {
   if (!airports.value.length) return null;
+  const planePos = { lat: planeLat, lon: planeLon };
   return airports.value.reduce((nearest, airport) => {
-    const distToNearest = Math.sqrt(Math.pow(planeLat - nearest.lat, 2) + Math.pow(planeLon - nearest.lon, 2));
-    const distToCurr = Math.sqrt(Math.pow(planeLat - airport.lat, 2) + Math.pow(planeLon - airport.lon, 2));
-    return distToCurr < distToNearest ? airport : nearest;
+    return getDistance(planePos, airport) < getDistance(planePos, nearest) ? airport : nearest;
   });
 };
 
 const returnToStart = () => {
   if (!activeIcao.value) return;
-
   const icao = activeIcao.value;
   resetActivePath(icao);
-
   isReturningToStart.value = true;
   isEmergency.value = false;
   isPaused.value = false;
-
   if (emergencyRoute.value) {
     map.removeLayer(emergencyRoute.value);
     emergencyRoute.value = null;
   }
 };
 
-const nearestAirport = computed(() => {
-  if (selectedFlight.value && airports.value.length > 0) {
-    return getNearestAirport(selectedFlight.value.lat, selectedFlight.value.lon);
+const zoomToPlane = (lat, lon) => {
+  if (lat && lon && map) {
+    map.setView([lat, lon], 8, { animate: true, duration: 1 });
   }
-  return null;
-});
+};
+
+const recenterMap = () => {
+  if (selectedFlight.value) {
+    zoomToPlane(selectedFlight.value.lat, selectedFlight.value.lon);
+  }
+};
 
 const toggleDarkMode = () => { darkMode.value = !darkMode.value; };
 const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value; };
@@ -200,67 +253,39 @@ const togglePause = () => {
   }
 };
 
-const recenterMap = () => {
-  if (selectedFlight.value) {
-    map.setView([selectedFlight.value.lat, selectedFlight.value.lon], 8, {
-      animate: true,
-      duration: 1
-    });
-  }
-};
-
-const staticRoutes = {};
-const activeRoutes = {};
-const terminalMarkers = {};
-let map = null;
-
-const filteredFlights = computed(() => {
-  const query = searchQuery.value.toLowerCase();
-  return Object.values(currentFlights.value).filter(f =>
-    f.callsign?.toString().toLowerCase().includes(query)
-  );
-});
-
-const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
-
 const clearAllRoutes = () => {
-  Object.keys(staticRoutes).forEach(key => { if (staticRoutes[key]) map.removeLayer(staticRoutes[key]); delete staticRoutes[key]; });
-  Object.keys(activeRoutes).forEach(key => { if (activeRoutes[key]) map.removeLayer(activeRoutes[key]); delete activeRoutes[key]; });
+  routeLayer.clearLayers();
   if (emergencyRoute.value) {
     map.removeLayer(emergencyRoute.value);
     emergencyRoute.value = null;
   }
-  Object.keys(terminalMarkers).forEach(key => {
-    if (terminalMarkers[key]) terminalMarkers[key].forEach(layer => map.removeLayer(layer));
-    delete terminalMarkers[key];
-  });
 };
 
 const drawFullRoute = (icao) => {
-  if (staticRoutes[icao]) map.removeLayer(staticRoutes[icao]);
-  if (activeRoutes[icao]) map.removeLayer(activeRoutes[icao]);
-  if (terminalMarkers[icao]) terminalMarkers[icao].forEach(m => map.removeLayer(m));
-
-  const allPoints = flightPaths.value[icao].map(p => [p.lat, p.lon]);
+  clearAllRoutes();
+  const path = flightPaths.value[icao];
+  const allPoints = path.map(p => [p.lat, p.lon]);
   const currentStep = animationSteps.value[icao];
 
-  staticRoutes[icao] = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 }).addTo(map);
+  const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 });
   const pointsSoFar = allPoints.slice(0, currentStep + 1);
-  activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 }).addTo(map);
+  activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 });
 
+  //Başlangıç ve Bitiş Noktaları
   const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
   const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
 
-  startCircle.addTo(map);
-  endCircle.addTo(map);
-  terminalMarkers[icao] = [startCircle, endCircle];
+  staticPath.addTo(routeLayer);
+  activeRoutes[icao].addTo(routeLayer);
+  startCircle.addTo(routeLayer);
+  endCircle.addTo(routeLayer);
+  routeLayer.addTo(map);
 };
 
 const startEmergencyLanding = () => {
   if (selectedFlight.value && nearestAirport.value) {
     const icao = activeIcao.value;
-    resetActivePath(icao); // ESKİ YOLU TEMİZLE
-
+    resetActivePath(icao);
     isEmergency.value = true;
     isPaused.value = false;
 
@@ -268,7 +293,6 @@ const startEmergencyLanding = () => {
     const end = [nearestAirport.value.lat, nearestAirport.value.lon];
 
     if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
-
     emergencyRoute.value = L.polyline([start, end], {
       color: 'red',
       weight: 4,
@@ -280,9 +304,26 @@ const startEmergencyLanding = () => {
   }
 };
 
+const nearestAirport = computed(() => {
+  if (selectedFlight.value && airports.value.length > 0) {
+    return getNearestAirport(selectedFlight.value.lat, selectedFlight.value.lon);
+  }
+  return null;
+});
+
+const filteredFlights = computed(() => {
+  const query = searchQuery.value.toLowerCase();
+  return Object.values(currentFlights.value).filter(f =>
+    f.callsign?.toString().toLowerCase().includes(query)
+  );
+});
+
+const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
+
 onMounted(async () => {
   const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
   map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
+  routeLayer.addTo(map);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
@@ -322,6 +363,13 @@ onMounted(async () => {
     Object.keys(grouped).forEach(icao => {
       const firstPoint = grouped[icao][0];
       currentFlights.value[icao] = firstPoint;
+
+      currentFlights.value[icao] = {
+        ...firstPoint,
+        velocity: 0,
+        baroaltitude: 0
+      };
+
       animationSteps.value[icao] = 0;
 
       if (firstPoint.lat && firstPoint.lon) {
@@ -334,7 +382,6 @@ onMounted(async () => {
           L.DomEvent.stopPropagation(e);
           sidebarOpen.value = true;
           if (activeIcao.value !== icao) {
-            clearAllRoutes();
             activeIcao.value = icao;
             isPaused.value = true;
             drawFullRoute(icao);
@@ -346,107 +393,69 @@ onMounted(async () => {
     });
 
     setInterval(() => {
-      if (activeIcao.value && flightPaths.value[activeIcao.value] && !isPaused.value) {
-        const icao = activeIcao.value;
-        const path = flightPaths.value[icao];
+      const icao = activeIcao.value;
+      if (!icao || isPaused.value || !flightPaths.value[icao]) return;
+
+      const path = flightPaths.value[icao];
+      const plane = currentFlights.value[icao];
+
+      // ACİL İNİŞ (En yakın havaalanına)
+      if (isEmergency.value && nearestAirport.value) {
+        const arrived = movePlane(icao, nearestAirport.value.lat, nearestAirport.value.lon, 0.035);
+        plane.baroaltitude = Math.max(0, plane.baroaltitude - 50); // İrtifa ve hız kademeli azalır
+        plane.velocity = Math.max(0, plane.velocity - 4);
+        if (arrived) {
+          isPaused.value = true;
+          isEmergency.value = false;
+          if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+        }
+      }
+
+      // ANA MERKEZE DÖNÜŞ 
+      else if (isReturningToStart.value) {
+        const arrived = movePlane(icao, path[0].lat, path[0].lon, 0.03);
+        plane.baroaltitude = Math.max(0, plane.baroaltitude - 40);
+        plane.velocity = Math.max(0, plane.velocity - 3);
+        if (arrived) {
+          isReturningToStart.value = false;
+          isPaused.value = true;
+          animationSteps.value[icao] = 0;
+          drawFullRoute(icao);
+        }
+      }
+      // NORMAL İLERLEME 
+      else {
         const step = animationSteps.value[icao];
-
-        // ACİL İNİŞ 
-        if (isEmergency.value && nearestAirport.value) {
-          const plane = currentFlights.value[icao];
-          const target = nearestAirport.value;
-          const dx = target.lat - plane.lat;
-          const dy = target.lon - plane.lon;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const moveStep = 0.035;
-
-          if (dist > moveStep) {
-            const nextPos = [plane.lat + (dx / dist) * moveStep, plane.lon + (dy / dist) * moveStep];
-
-            currentFlights.value[icao].baroaltitude = Math.max(10, plane.baroaltitude - 50);
-            currentFlights.value[icao].velocity = Math.max(15, plane.velocity - 4);
-
-            currentFlights.value[icao].lat = nextPos[0];
-            currentFlights.value[icao].lon = nextPos[1];
-
-            if (markers[icao]) {
-              markers[icao].setLatLng(nextPos);
-              markers[icao].setRotationAngle((Math.atan2(dy, dx) * (180 / Math.PI)) - 80);
-              if (activeRoutes[icao]) activeRoutes[icao].addLatLng(nextPos);
-            }
-          } else {
-            currentFlights.value[icao].baroaltitude = 0;
-            currentFlights.value[icao].velocity = 0;
-            isPaused.value = true;
-            isEmergency.value = false;
-            if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
-          }
+        if (step + 1 >= path.length) {
+          isPaused.value = true;
+          return;
         }
+        const nextStep = step + 1;
+        const nextPoint = path[nextStep];
+        const plane = currentFlights.value[icao];
 
-        // ANA MERKEZE DÖNÜŞ
-        else if (isReturningToStart.value) {
-          const plane = currentFlights.value[icao];
-          const target = path[0];
-          const dx = target.lat - plane.lat;
-          const dy = target.lon - plane.lon;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const moveStep = 0.03;
+        // Hedef değerler JSON'dan
+        const targetVel = nextPoint.velocity || 250;
+        const targetAlt = nextPoint.baroaltitude || 5000;
 
-          if (dist > moveStep) {
-            const nextPos = [plane.lat + (dx / dist) * moveStep, plane.lon + (dy / dist) * moveStep];
+        // Değerler kademeli artır/azalt 
+        if (plane.velocity < targetVel) plane.velocity = Math.min(targetVel, plane.velocity + 5);
+        else if (plane.velocity > targetVel) plane.velocity = Math.max(targetVel, plane.velocity - 5);
 
-            currentFlights.value[icao].baroaltitude = Math.max(10, plane.baroaltitude - 40);
-            currentFlights.value[icao].velocity = Math.max(20, plane.velocity - 3);
+        if (plane.baroaltitude < targetAlt) plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 100);
+        else if (plane.baroaltitude > targetAlt) plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 100);
 
-            currentFlights.value[icao].lat = nextPos[0];
-            currentFlights.value[icao].lon = nextPos[1];
+        plane.lat = nextPoint.lat;
+        plane.lon = nextPoint.lon;
+        plane.heading = nextPoint.heading;
+        plane.distance_from_dep = nextPoint.distance_from_dep;
+        plane.trip_distance = nextPoint.trip_distance;
 
-            if (markers[icao]) {
-              markers[icao].setLatLng(nextPos);
-              markers[icao].setRotationAngle((Math.atan2(dy, dx) * (180 / Math.PI)) - 80);
-              if (activeRoutes[icao]) activeRoutes[icao].addLatLng(nextPos);
-            }
-          } else {
-            currentFlights.value[icao].baroaltitude = 0;
-            currentFlights.value[icao].velocity = 0;
-            isReturningToStart.value = false;
-            isPaused.value = true;
-            animationSteps.value[icao] = 0;
-            clearAllRoutes();
-            drawFullRoute(icao);
-          }
-        }
+        const currentPos = markers[icao].getLatLng();
+        const distToNext = getDistance(currentPos, { lat: nextPoint.lat, lon: nextPoint.lon });
 
-        // NORMAL İLERLEME
-        else {
-          if (step + 1 >= path.length) {
-            isPaused.value = true;
-            return;
-          }
-
-          const nextStep = step + 1;
-          const point = path[nextStep];
-
-          animationSteps.value[icao] = nextStep;
-          currentFlights.value[icao] = { ...point };
-
-          if (markers[icao]) {
-            const newPos = [point.lat, point.lon];
-
-            // Eğer uçak rotadan çok uzaktaysa
-            const currentPos = markers[icao].getLatLng();
-            const distCheck = Math.sqrt(Math.pow(newPos[0] - currentPos.lat, 2) + Math.pow(newPos[1] - currentPos.lng, 2));
-
-            if (distCheck > 0.5) {
-              markers[icao].setLatLng(newPos);
-            } else {
-              markers[icao].slideTo(newPos, { duration: 100 });
-            }
-
-            markers[icao].setRotationAngle((point.heading || 0) - 80);
-            if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
-          }
-        }
+        animationSteps.value[icao] = nextStep;
+        movePlane(icao, nextPoint.lat, nextPoint.lon, distToNext > 0.5 ? 0.01 : 0);
       }
     }, 100);
   } catch (error) {
@@ -458,12 +467,11 @@ const focusFlight = (f) => {
   if (f.lat && f.lon) {
     sidebarOpen.value = true;
     if (activeIcao.value !== f.icao24) {
-      clearAllRoutes();
-      isPaused.value = true;
       activeIcao.value = f.icao24;
+      isPaused.value = true;
       drawFullRoute(f.icao24);
     }
-    map.setView([f.lat, f.lon], 8, { animate: true, duration: 1 });
+    zoomToPlane(f.lat, f.lon);
   }
 };
 </script>
