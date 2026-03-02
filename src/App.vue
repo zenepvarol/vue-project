@@ -145,6 +145,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import {
   Plane, Gauge, Mountain, MapPin, Navigation,
@@ -157,8 +158,8 @@ import { onMounted, ref, computed } from 'vue';
 import './assets/flight-style.css';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-rotatedmarker';
-import 'leaflet.marker.slideto';
+import 'leaflet-rotatedmarker'; // marker döndürme
+import 'leaflet.marker.slideto'; // akıcı geçiş (animation)
 
 // --- REAKTİF DEĞİŞKENLER ---
 const searchQuery = ref('');
@@ -174,13 +175,9 @@ const airports = ref([]);
 const isEmergency = ref(false);
 const emergencyRoute = ref(null);
 const isReturningToStart = ref(false);
-
-const staticRoutes = {};
 const activeRoutes = {};
-const terminalMarkers = {};
 let map = null;
 const routeLayer = L.layerGroup();
-
 
 const getDistance = (p1, p2) => {
   return Math.sqrt(Math.pow(p1.lat - p2.lat, 2) + Math.pow(p1.lon - p2.lon, 2));
@@ -221,7 +218,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
     marker.setLatLng(newPos);
   }
 
-  marker.setRotationAngle(heading - 80);
+  marker.setRotationAngle(heading - 45); // -45 derece iconun tasarımı geregi
   if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
 
   return false; // Henüz hedefe varılmadı
@@ -352,6 +349,7 @@ onMounted(async () => {
   map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
   routeLayer.addTo(map);
 
+  // TileLayer: Harita katmanı (OpenStreetMap)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     noWrap: true
@@ -362,14 +360,14 @@ onMounted(async () => {
     airports.value = await airResponse.json();
 
     airports.value.forEach(ap => {
-      const airportIcon = L.divIcon({
+      const airportIcon = L.divIcon({ // SVG tabanlı özel icon tanımlama
         html: `
-<div class="airport-marker">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2ecc71" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
-        </svg>
-        <span class="airport-label">${ap.id}</span>
-      </div>`,
+        <div class="airport-marker">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2ecc71" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span class="airport-label">${ap.id}</span>
+        </div>`,
         className: 'custom-airport',
         iconSize: [40, 40]
       });
@@ -413,7 +411,7 @@ onMounted(async () => {
       if (firstPoint.lat && firstPoint.lon) {
         const marker = L.marker([firstPoint.lat, firstPoint.lon], {
           icon: planeIcon,
-          rotationAngle: (firstPoint.heading || 0) - 80
+          rotationAngle: (firstPoint.heading || 0) - 45
         }).addTo(map);
 
         marker.on('click', (e) => {
