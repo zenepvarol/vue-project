@@ -471,27 +471,43 @@ onMounted(async () => {
       else if (isReturningToStart.value) {
         const targetPos = { lat: path[0].lat, lon: path[0].lon };
         const currentPos = { lat: plane.lat, lon: plane.lon };
-        const dist = getDistance(currentPos, targetPos);
-        const stepSize = 0.002; // hız
+        const startPos = { lat: path[animationSteps.value[icao]].lat, lon: path[animationSteps.value[icao]].lon };
+
+        const distToTarget = getDistance(currentPos, targetPos);
+        const distFromStart = getDistance(currentPos, startPos);
+
+        const stepSize = 0.002;
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
-        if (!arrived && dist > 0) {
-          const estimatedStepsLeft = dist / stepSize; // kalan adım hesabı
+        if (!arrived && distToTarget > 0) {
+          const estimatedStepsLeft = distToTarget / stepSize;
 
-          if (estimatedStepsLeft > 1) {
-            plane.velocity -= (plane.velocity / estimatedStepsLeft);
-            plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
+          // hedefe daha yakınken
+          if (distToTarget < distFromStart) {
+            if (estimatedStepsLeft > 1) {
+              plane.velocity -= (plane.velocity / estimatedStepsLeft);
+              plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
+            }
+          }
+          // kalkısa daha yakınken
+          else {
+            if (plane.velocity < 180) plane.velocity += 0.5;
+
+            let climbRate = 8; // Temel tırmanış hızı
+            if (plane.baroaltitude > 2000) climbRate = 4;
+            if (plane.baroaltitude > 3500) climbRate = 1.5;
+            if (plane.baroaltitude > 4500) climbRate = 0.5;
+
+            plane.baroaltitude += climbRate;
           }
         }
 
         if (arrived) {
           plane.velocity = 0;
           plane.baroaltitude = 0;
-
           isReturningToStart.value = false;
           isPaused.value = true;
           animationSteps.value[icao] = 0;
-
           drawFullRoute(icao);
         }
       }
@@ -508,15 +524,22 @@ onMounted(async () => {
         const plane = currentFlights.value[icao];
 
         // Hedef değerler JSON'dan
-        const targetVel = nextPoint.velocity || 250;
-        const targetAlt = nextPoint.baroaltitude || 5000;
+        const targetVel = nextPoint.velocity;
+        const targetAlt = nextPoint.baroaltitude;
 
-        // Değerler kademeli artır/azalt 
-        if (plane.velocity < targetVel) plane.velocity = Math.min(targetVel, plane.velocity + 5);
-        else if (plane.velocity > targetVel) plane.velocity = Math.max(targetVel, plane.velocity - 5);
+        // HIZ
+        if (plane.velocity < targetVel) {
+          plane.velocity = Math.min(targetVel, plane.velocity + 0.5);  // her 100ms de 0.5 artış
+        } else if (plane.velocity > targetVel) {
+          plane.velocity = Math.max(targetVel, plane.velocity - 1);
+        }
 
-        if (plane.baroaltitude < targetAlt) plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 100);
-        else if (plane.baroaltitude > targetAlt) plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 100);
+        // RAKIM 
+        if (plane.baroaltitude < targetAlt) {
+          plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 5); // her 100ms de 5 feet artış
+        } else if (plane.baroaltitude > targetAlt) {
+          plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 10); // iniş tırmanıştan hızlı
+        }
 
         plane.lat = nextPoint.lat;
         plane.lon = nextPoint.lon;
