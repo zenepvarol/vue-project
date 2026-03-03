@@ -437,28 +437,65 @@ onMounted(async () => {
 
       // ACİL İNİŞ (En yakın havaalanına)
       if (isEmergency.value && nearestAirport.value) {
-        const arrived = movePlane(icao, nearestAirport.value.lat, nearestAirport.value.lon, 0.035);
-        plane.baroaltitude = Math.max(0, plane.baroaltitude - 50); // İrtifa ve hız kademeli azalır
-        plane.velocity = Math.max(0, plane.velocity - 4);
-        if (arrived) {
+        const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
+        const currentPos = { lat: plane.lat, lon: plane.lon };
+
+        const dist = getDistance(currentPos, targetPos); // kalan mesafe
+        const stepSize = 0.005; // sabit süzülme 
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+
+        if (!arrived && dist > 0) { // kademeli sıfırlama
+          const estimatedStepsLeft = dist / stepSize;
+
+          if (estimatedStepsLeft > 1) {
+            plane.velocity -= (plane.velocity / estimatedStepsLeft);
+            plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
+          }
+        }
+
+        if (arrived) { // varış 
+          plane.velocity = 0;
+          plane.baroaltitude = 0;
+
           isPaused.value = true;
           isEmergency.value = false;
-          if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+
+          if (emergencyRoute.value) {
+            map.removeLayer(emergencyRoute.value);
+            emergencyRoute.value = null;
+          }
         }
       }
 
       // ANA MERKEZE DÖNÜŞ 
       else if (isReturningToStart.value) {
-        const arrived = movePlane(icao, path[0].lat, path[0].lon, 0.03);
-        plane.baroaltitude = Math.max(0, plane.baroaltitude - 40);
-        plane.velocity = Math.max(0, plane.velocity - 3);
+        const targetPos = { lat: path[0].lat, lon: path[0].lon };
+        const currentPos = { lat: plane.lat, lon: plane.lon };
+        const dist = getDistance(currentPos, targetPos);
+        const stepSize = 0.002; // hız
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+
+        if (!arrived && dist > 0) {
+          const estimatedStepsLeft = dist / stepSize; // kalan adım hesabı
+
+          if (estimatedStepsLeft > 1) {
+            plane.velocity -= (plane.velocity / estimatedStepsLeft);
+            plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
+          }
+        }
+
         if (arrived) {
+          plane.velocity = 0;
+          plane.baroaltitude = 0;
+
           isReturningToStart.value = false;
           isPaused.value = true;
           animationSteps.value[icao] = 0;
+
           drawFullRoute(icao);
         }
       }
+
       // NORMAL İLERLEME 
       else {
         const step = animationSteps.value[icao];
