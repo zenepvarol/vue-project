@@ -34,16 +34,6 @@ body {
   overflow: hidden;
 }
 
-.sidebar-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  /* Butonlar arası boşluk */
-  width: 100%;
-  padding: 10px;
-}
-
 .sidebar.left {
   border-right: 1px solid #5a2121;
 }
@@ -134,6 +124,7 @@ body {
   padding: 4px 10px;
   cursor: pointer;
   font-size: 16px;
+  display: flex;
 }
 
 .close-button {
@@ -269,10 +260,6 @@ body {
   transition: transform 0.1s linear;
 }
 
-.active-plane svg {
-  fill: #ffcc00 !important; /* Seçili uçağı sarı yapabilirsin */
-}
-
 .plane-icon {
   background: none !important;
   border: none !important;
@@ -290,27 +277,6 @@ body {
   overflow-y: auto;
 }
 
-.back-button {
-  background: #faedcb;
-  border: 1px solid #ccc;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  align-self: flex-start;
-  font-weight: bold;
-  transition: all 0.2s;
-}
-
-.back-button.dark {
-  background: #0f3460;
-  color: #e0e0e0;
-  border-color: #333;
-}
-
-.back-button:hover {
-  background: #fec3a6;
-}
-
 .details-card {
   background: #fff;
   border-radius: 12px;
@@ -319,6 +285,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: auto;
 }
 
 .dark-mode-active .details-card {
@@ -345,19 +312,26 @@ body {
 }
 
 .locate-mini-button {
-  background: #9381ff;
-  color: white;
-  border: none;
-  width: 50px;
-  height: 35px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: #9381ff;
+  color: white;
+  border: none;
+  cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 2px 5px rgba(147, 129, 255, 0.4);
+}
+
+.locate-mini-button svg {
+  display: block;
+  margin-left: -2px;
+  margin-top: 2px;
 }
 
 .locate-mini-button:hover {
@@ -460,36 +434,6 @@ body {
   background: #27ae60;
 }
 
-.locate-button {
-  margin-top: -15px;
-  padding: 12px 12px;
-  border-radius: 8px;
-  border: 1px solid #9381ff;
-  background: white;
-  color: #9381ff;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.locate-button:hover {
-  background: #f0eeff;
-}
-
-.dark-mode-active .locate-button {
-  background: #1a1a2e;
-  color: #9381ff;
-  border-color: #9381ff;
-}
-
-.dark-mode-active .locate-button:hover {
-  background: #2a2a4a;
-}
-
 .returnhome-button {
   margin-top: 140px;
   padding: 12px;
@@ -528,15 +472,6 @@ body {
   justify-content: center;
 }
 
-.airport-dot {
-  width: 8px;
-  height: 8px;
-  background: #f1c40f;
-  border: 2px solid #2c3e50;
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(241, 196, 15, 0.8);
-}
-
 .airport-marker svg {
   filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.5));
 }
@@ -551,9 +486,8 @@ body {
 }
 
 .emergency-button {
-  margin-top: 50px;
+  margin-top: 15px;
   padding: 12px;
-  margin-left: 65px;
   border-radius: 8px;
   background: #ff0000;
   color: white;
@@ -561,6 +495,65 @@ body {
   cursor: pointer;
   border: none;
   animation: pulse 1.5s infinite;
+  width: 100%;
+  max-width: 100%;
+}
+
+.emergency-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.emergency-decision-box {
+  background: rgba(231, 76, 60, 0.1);
+  border: 2px dashed #e74c3c;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  animation: pulse-border 1s infinite;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 15px !important;
+}
+
+.emergency-warning-text {
+  color: #e74c3c;
+  font-weight: bold;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+@keyframes pulse-border {
+  0% { border-color: #e74c3c; }
+  50% { border-color: transparent; }
+  100% { border-color: #e74c3c; }
+}
+
+.simulate-btn {
+  background: #f39c12 !important;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  width: 248px;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.simulate-btn:hover {
+  background: #e67e22 !important;
 }
 
 .emergency-section {

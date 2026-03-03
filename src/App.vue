@@ -1,17 +1,15 @@
 <template>
   <div class="app-container" :class="{ 'dark-mode-active': darkMode }">
-
     <div class="sidebar left" :class="{ collapsed: !sidebarOpen }">
       <div class="sidebar-header">
         <div class="header-top">
           <h3>Uçuş Listesi</h3>
           <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
-            <Sun v-if="darkMode" :size="20" />
+            <Sun v-if="darkMode" :size="20" color="#f1c40f" />
             <Moon v-else :size="20" />
           </button>
         </div>
         <div class="search-container">
-          <Search class="search-icon" :size="16" />
           <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input" />
         </div>
       </div>
@@ -49,9 +47,6 @@
       <div class="flight-details">
         <div class="details-card">
           <div class="details-header">
-            <div class="plane-icon-wrapper">
-              <Plane :size="32" class="plane-icon-large" />
-            </div>
             <div class="header-text">
               <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
               <span class="model-subtitle">{{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}</span>
@@ -113,7 +108,9 @@
           </div>
 
           <div class="action-section">
-            <button v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency"
+
+            <button
+              v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency && !isEmergencySimulated"
               class="returnhome-button" @click="returnToStart">
               <RotateCcw :size="16" /> ANA MERKEZE DÖN
             </button>
@@ -123,23 +120,29 @@
               <Play :size="16" /> KALKIŞ ONAYI VER
             </button>
 
-            <div v-if="!isPaused && !isReturningToStart && !isEmergency && nearestAirport" class="emergency-section">
-              <div class="nearest-airport-info">
-                <MapPin :size="14" /> En Yakın Güvenli Nokta: <strong>{{ nearestAirport.name }}</strong>
+            <button v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart"
+              class="simulate-btn" @click="triggerSimulatedFailure">
+              <AlertTriangle :size="16" /> ARIZA SİMÜLE ET
+            </button>
+
+            <div v-if="isEmergencySimulated" class="emergency-decision-box">
+              <div class="emergency-warning-text">
+                <AlertOctagon :size="18" class="pulse-icon" />
+                SİSTEM ARIZASI! ({{ emergencyCountdown }}s)
               </div>
-              <button class="emergency-button" @click="startEmergencyLanding">
-                <AlertOctagon :size="16" /> ACİL İNİŞ YAP
+              <p class="decision-subtext">Operatör kararı bekleniyor...</p>
+              <button class="emergency-button" @click="handleManualEmergency">
+                ACİL İNİŞ YAP
               </button>
             </div>
           </div>
 
-          <div v-if="isEmergency" class="emergency-status-note" style="color: #e74c3c;">
+          <div v-if="isEmergency" class="emergency-status-note" style="color: #e74c3c; margin-top: 10px;">
             <AlertCircle :size="14" /> Acil iniş noktasına gidiliyor.
           </div>
-          <div v-if="isReturningToStart" class="emergency-status-note" style="color: #3498db;">
+          <div v-if="isReturningToStart" class="emergency-status-note" style="color: #3498db; margin-top: 10px;">
             <Info :size="14" /> Ana merkeze dönüş yapılıyor.
           </div>
-
         </div>
       </div>
     </div>
@@ -148,10 +151,8 @@
 
 <script setup>
 import {
-  Plane, Gauge, Mountain, MapPin, Navigation,
-  AlertOctagon, AlertCircle, Play, RotateCcw,
-  Search, Sun, Moon, X, ChevronLeft, ChevronRight,
-  Activity, Info
+  Plane, Gauge, Mountain, MapPin, Navigation, AlertOctagon, AlertCircle, Play, RotateCcw,
+  Sun, Moon, X, ChevronLeft, ChevronRight, Activity, Info, AlertTriangle
 } from 'lucide-vue-next';
 
 import { onMounted, ref, computed } from 'vue';
@@ -161,7 +162,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker'; // marker döndürme
 import 'leaflet.marker.slideto'; // akıcı geçiş (animation)
 
-// --- REAKTİF DEĞİŞKENLER ---
+//  REAKTİF DEĞİŞKENLER 
 const searchQuery = ref('');
 const currentFlights = ref({});
 const markers = {};
@@ -178,6 +179,8 @@ const isReturningToStart = ref(false);
 const activeRoutes = {};
 let map = null;
 const routeLayer = L.layerGroup();
+const isEmergencySimulated = ref(false);
+const emergencyCountdown = ref(10); // ARIZA SAYACI 10 sn simdilik
 
 const getDistance = (p1, p2) => {
   return Math.sqrt(Math.pow(p1.lat - p2.lat, 2) + Math.pow(p1.lon - p2.lon, 2));
@@ -441,7 +444,7 @@ onMounted(async () => {
         const currentPos = { lat: plane.lat, lon: plane.lon };
 
         const dist = getDistance(currentPos, targetPos); // kalan mesafe
-        const stepSize = 0.005; // sabit süzülme 
+        const stepSize = 0.05; // sabit süzülme DEGİSCEK
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
         if (!arrived && dist > 0) { // kademeli sıfırlama
@@ -476,7 +479,7 @@ onMounted(async () => {
         const distToTarget = getDistance(currentPos, targetPos);
         const distFromStart = getDistance(currentPos, startPos);
 
-        const stepSize = 0.002;
+        const stepSize = 0.05; // DEGİSCEK SUAN HIZLI
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
         if (!arrived && distToTarget > 0) {
@@ -491,11 +494,11 @@ onMounted(async () => {
           }
           // kalkısa daha yakınken
           else {
-            if (plane.velocity < 180) plane.velocity += 0.5;
+            if (plane.velocity < 180) plane.velocity += 1;
 
             let climbRate = 8; // Temel tırmanış hızı
-            if (plane.baroaltitude > 2000) climbRate = 4;
-            if (plane.baroaltitude > 3500) climbRate = 1.5;
+            if (plane.baroaltitude > 2000) climbRate = 3;
+            if (plane.baroaltitude > 3500) climbRate = 2;
             if (plane.baroaltitude > 4500) climbRate = 0.5;
 
             plane.baroaltitude += climbRate;
@@ -529,16 +532,16 @@ onMounted(async () => {
 
         // HIZ
         if (plane.velocity < targetVel) {
-          plane.velocity = Math.min(targetVel, plane.velocity + 0.5);  // her 100ms de 0.5 artış
+          plane.velocity = Math.min(targetVel, plane.velocity + 2.5);
         } else if (plane.velocity > targetVel) {
-          plane.velocity = Math.max(targetVel, plane.velocity - 1);
+          plane.velocity = Math.max(targetVel, plane.velocity - 2);
         }
 
         // RAKIM 
         if (plane.baroaltitude < targetAlt) {
-          plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 5); // her 100ms de 5 feet artış
+          plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 10); // KALKIS
         } else if (plane.baroaltitude > targetAlt) {
-          plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 10); // iniş tırmanıştan hızlı
+          plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 10); //İNİS
         }
 
         plane.lat = nextPoint.lat;
@@ -558,6 +561,35 @@ onMounted(async () => {
     console.error("Hata:", error);
   }
 });
+
+// ARIZA SİMÜLASYONU
+const triggerSimulatedFailure = () => {
+  if (isEmergencySimulated.value) return; // Zaten arıza varsa tekrar başlatma
+
+  isEmergencySimulated.value = true;
+  emergencyCountdown.value = 10; // saniye
+
+  // Saniyede bir azalan sayaç
+  const countdownInterval = setInterval(() => {
+    if (emergencyCountdown.value > 0 && isEmergencySimulated.value) {
+      emergencyCountdown.value--;
+    } else {
+      clearInterval(countdownInterval);
+      // SÜRE DOLDU VE OPERATÖR BASMADIYSA: OTOMATİK İNİŞ
+      if (isEmergencySimulated.value && !isEmergency.value) {
+        console.log("OTOMATİK KARAR: Operatör yanıt vermedi, iniş başlatılıyor...");
+        startEmergencyLanding();
+        isEmergencySimulated.value = false; // Simülasyon modundan çık
+      }
+    }
+  }, 1000);
+};
+
+// ACİL İNİŞ BUTONUNA BASILDIĞINDA
+const handleManualEmergency = () => {
+  isEmergencySimulated.value = false; // Sayacı durdurur
+  startEmergencyLanding(); // Mevcut iniş fonksiyonunu çağırır
+};
 
 const focusFlight = (f) => {
   if (f.lat && f.lon) {
