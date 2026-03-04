@@ -73,6 +73,19 @@
               </span>
             </div>
 
+            <div class="detail-item full-width">
+              <label>
+                <Battery :size="14" /> YAKIT (%{{ Math.round(selectedFlight.energy) }})
+              </label>
+              <div class="progress-bar energy-bar">
+                <div class="progress-fill" :style="{
+                  width: selectedFlight.energy + '%',
+                  backgroundColor: selectedFlight.energy < 20 ? '#e74c3c' : '#2ecc71'
+                }">
+                </div>
+              </div>
+            </div>
+            
             <div class="details-row-inline">
               <div class="detail-item">
                 <label>
@@ -406,7 +419,8 @@ onMounted(async () => {
       currentFlights.value[icao] = {
         ...firstPoint,
         velocity: 0,
-        baroaltitude: 0
+        baroaltitude: 0,
+        energy: 100
       };
 
       animationSteps.value[icao] = 0;
@@ -439,6 +453,16 @@ onMounted(async () => {
       const plane = currentFlights.value[icao];
 
       // ACİL İNİŞ (En yakın havaalanına)
+      if (plane.energy > 0) {
+        plane.energy = Math.max(0, plane.energy - 0.3); // 0.02 İDEAL ??? arastırılcak
+      }
+
+      if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) {
+        console.warn("KRİTİK ENERJİ"); 
+        triggerSimulatedFailure();
+      }
+
+      // ACİL İNİŞ (En yakın havaalanına)
       if (isEmergency.value && nearestAirport.value) {
         const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
         const currentPos = { lat: plane.lat, lon: plane.lon };
@@ -449,7 +473,6 @@ onMounted(async () => {
 
         if (!arrived && dist > 0) { // kademeli sıfırlama
           const estimatedStepsLeft = dist / stepSize;
-
           if (estimatedStepsLeft > 1) {
             plane.velocity -= (plane.velocity / estimatedStepsLeft);
             plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
@@ -459,9 +482,9 @@ onMounted(async () => {
         if (arrived) { // varış 
           plane.velocity = 0;
           plane.baroaltitude = 0;
-
           isPaused.value = true;
           isEmergency.value = false;
+          animationSteps.value[icao] = 0;
 
           if (emergencyRoute.value) {
             map.removeLayer(emergencyRoute.value);
@@ -478,13 +501,11 @@ onMounted(async () => {
 
         const distToTarget = getDistance(currentPos, targetPos);
         const distFromStart = getDistance(currentPos, startPos);
-
         const stepSize = 0.05; // DEGİSCEK SUAN HIZLI
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
         if (!arrived && distToTarget > 0) {
           const estimatedStepsLeft = distToTarget / stepSize;
-
           // hedefe daha yakınken
           if (distToTarget < distFromStart) {
             if (estimatedStepsLeft > 1) {
@@ -495,12 +516,10 @@ onMounted(async () => {
           // kalkısa daha yakınken
           else {
             if (plane.velocity < 180) plane.velocity += 1;
-
             let climbRate = 8; // Temel tırmanış hızı
             if (plane.baroaltitude > 2000) climbRate = 3;
             if (plane.baroaltitude > 3500) climbRate = 2;
             if (plane.baroaltitude > 4500) climbRate = 0.5;
-
             plane.baroaltitude += climbRate;
           }
         }
@@ -524,7 +543,6 @@ onMounted(async () => {
         }
         const nextStep = step + 1;
         const nextPoint = path[nextStep];
-        const plane = currentFlights.value[icao];
 
         // Hedef değerler JSON'dan
         const targetVel = nextPoint.velocity;
