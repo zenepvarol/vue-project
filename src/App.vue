@@ -10,7 +10,7 @@
           </button>
         </div>
         <div class="search-container">
-          <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara..." class="search-input" />
+          <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara: " class="search-input" />
         </div>
       </div>
 
@@ -56,7 +56,8 @@
             </button>
           </div>
 
-          <div class="details-grid">
+          <div class="details-grid"
+            :class="{ 'link-loss-blur': activeFailure?.label.includes('SİNYAL') && isEmergencySimulated }">
             <div class="detail-item full-width">
               <label>
                 <Activity :size="14" /> Durum
@@ -85,7 +86,7 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="details-row-inline">
               <div class="detail-item">
                 <label>
@@ -121,7 +122,6 @@
           </div>
 
           <div class="action-section">
-
             <button
               v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency && !isEmergencySimulated"
               class="returnhome-button" @click="returnToStart">
@@ -139,11 +139,15 @@
             </button>
 
             <div v-if="isEmergencySimulated" class="emergency-decision-box">
-              <div class="emergency-warning-text">
+              <div class="emergency-warning-text" :style="{ color: activeFailure?.color || '#e74c3c' }">
                 <AlertOctagon :size="18" class="pulse-icon" />
-                SİSTEM ARIZASI! ({{ emergencyCountdown }}s)
+                {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
               </div>
+              <p class="decision-subtext" style="font-size: 11px; margin-bottom: 5px; font-weight: bold;">
+                {{ activeFailure?.message || 'Bilinmeyen bir hata oluştu.' }}
+              </p>
               <p class="decision-subtext">Operatör kararı bekleniyor...</p>
+
               <button class="emergency-button" @click="handleManualEmergency">
                 ACİL İNİŞ YAP
               </button>
@@ -249,15 +253,17 @@ const resetActivePath = (icao) => {
 };
 
 const getNearestAirport = (planeLat, planeLon) => {
+  // Eğer yüklü bir havalimanı kütüphanesi yoksa boş döner
   if (!airports.value.length) return null;
   const planePos = { lat: planeLat, lon: planeLon };
+  // Havalimanı listesini karşılaştırarak en yakın olanı seçer
   return airports.value.reduce((nearest, airport) => {
     return getDistance(planePos, airport) < getDistance(planePos, nearest) ? airport : nearest;
   });
 };
 
 const returnToStart = () => {
-  if (!activeIcao.value) return;
+  if (!activeIcao.value) return; // aktif uçuş seçili değilse işlem sonlanır
   const icao = activeIcao.value;
   resetActivePath(icao);
   isReturningToStart.value = true;
@@ -336,10 +342,10 @@ const startEmergencyLanding = () => {
     emergencyRoute.value = L.polyline([start, end], {
       color: 'red',
       weight: 4,
-      dashArray: '10, 10',
+      dashArray: '10, 10', // Kesikli çizgi efekti
       opacity: 0.8
     }).addTo(map);
-
+    // Harita uçak ve iniş noktasını içine alacak şekilde odaklanır
     map.fitBounds(L.latLngBounds([start, end]), { padding: [50, 50], maxZoom: 8 });
   }
 };
@@ -400,6 +406,7 @@ onMounted(async () => {
 
     flightPaths.value = grouped;
 
+    // Uçak ikonu tasarımı (SVG)
     const planeIcon = L.divIcon({
       html: `
     <div class="moving-plane">
@@ -412,17 +419,16 @@ onMounted(async () => {
       iconAnchor: [20, 20]
     });
 
+    // Her ucak başlangıç konumunda olusur
     Object.keys(grouped).forEach(icao => {
       const firstPoint = grouped[icao][0];
       currentFlights.value[icao] = firstPoint;
-
-      currentFlights.value[icao] = {
+      currentFlights.value[icao] = { // Başlangıç değerleri (Enerji %100, Hız 0)
         ...firstPoint,
         velocity: 0,
         baroaltitude: 0,
         energy: 100
       };
-
       animationSteps.value[icao] = 0;
 
       if (firstPoint.lat && firstPoint.lon) {
@@ -448,17 +454,16 @@ onMounted(async () => {
     setInterval(() => {
       const icao = activeIcao.value;
       if (!icao || isPaused.value || !flightPaths.value[icao]) return;
-
       const path = flightPaths.value[icao];
       const plane = currentFlights.value[icao];
 
-      // ACİL İNİŞ (En yakın havaalanına)
+      // Uçak hareket ederken yakıt tüketimi
       if (plane.energy > 0) {
-        plane.energy = Math.max(0, plane.energy - 0.3); // 0.02 İDEAL ??? arastırılcak
+        plane.energy = Math.max(0, plane.energy - 0.2); // 0.02 İDEAL ??? arastırılcak
       }
 
       if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) {
-        console.warn("KRİTİK ENERJİ"); 
+        console.warn("KRİTİK ENERJİ");
         triggerSimulatedFailure();
       }
 
@@ -468,10 +473,10 @@ onMounted(async () => {
         const currentPos = { lat: plane.lat, lon: plane.lon };
 
         const dist = getDistance(currentPos, targetPos); // kalan mesafe
-        const stepSize = 0.05; // sabit süzülme DEGİSCEK
+        const stepSize = 0.05; // iniş hızı DEGİSCEK
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
-        if (!arrived && dist > 0) { // kademeli sıfırlama
+        if (!arrived && dist > 0) { // kademeli sıfırlama hız ve rakımı
           const estimatedStepsLeft = dist / stepSize;
           if (estimatedStepsLeft > 1) {
             plane.velocity -= (plane.velocity / estimatedStepsLeft);
@@ -484,7 +489,15 @@ onMounted(async () => {
           plane.baroaltitude = 0;
           isPaused.value = true;
           isEmergency.value = false;
-          animationSteps.value[icao] = 0;
+
+          // varılan yer ana merkezse sıfırlama
+          const homePos = { lat: path[0].lat, lon: path[0].lon };
+          const currentPos = { lat: plane.lat, lon: plane.lon };
+
+          if (getDistance(currentPos, homePos) < 0.01) {
+            animationSteps.value[icao] = 0; // Ana merkeze döndüğümüzü anla
+            drawFullRoute(icao); // harita başlangıçta
+          }
 
           if (emergencyRoute.value) {
             map.removeLayer(emergencyRoute.value);
@@ -506,14 +519,14 @@ onMounted(async () => {
 
         if (!arrived && distToTarget > 0) {
           const estimatedStepsLeft = distToTarget / stepSize;
-          // hedefe daha yakınken
+          // hedefe daha yakınken iniş
           if (distToTarget < distFromStart) {
             if (estimatedStepsLeft > 1) {
               plane.velocity -= (plane.velocity / estimatedStepsLeft);
               plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
             }
           }
-          // kalkısa daha yakınken
+          // kalkısa daha yakınken yukselis
           else {
             if (plane.velocity < 180) plane.velocity += 1;
             let climbRate = 8; // Temel tırmanış hızı
@@ -529,7 +542,7 @@ onMounted(async () => {
           plane.baroaltitude = 0;
           isReturningToStart.value = false;
           isPaused.value = true;
-          animationSteps.value[icao] = 0;
+          animationSteps.value[icao] = 0; // adım sıfırlanır
           drawFullRoute(icao);
         }
       }
@@ -538,7 +551,7 @@ onMounted(async () => {
       else {
         const step = animationSteps.value[icao];
         if (step + 1 >= path.length) {
-          isPaused.value = true;
+          isPaused.value = true; // rota bittiyse dur
           return;
         }
         const nextStep = step + 1;
@@ -580,24 +593,45 @@ onMounted(async () => {
   }
 });
 
+// Sistemdeki olası acil durum senaryolarını, mesajlarını ve görsel renklerini tanımlar.
+const failureTypes = {
+  LOW_BATTERY: {
+    label: 'DÜŞÜK YAKIT',
+    message: 'Enerji seviyesi %20 altına düştü! Güvenli iniş gerekli.',
+    color: '#e74c3c' // kırmızı hata
+  },
+  LINK_LOSS: {
+    label: 'SİNYAL KAYBI',
+    message: 'Bağlantı kesildi! 10sn içinde otonom iniş yapılacak.',
+    color: '#f39c12' // turuncu uyarı
+  }
+};
+
+const activeFailure = ref(null);
+
 // ARIZA SİMÜLASYONU
 const triggerSimulatedFailure = () => {
-  if (isEmergencySimulated.value) return; // Zaten arıza varsa tekrar başlatma
+  if (isEmergencySimulated.value || !selectedFlight.value) return;
 
-  isEmergencySimulated.value = true;
-  emergencyCountdown.value = 10; // saniye
+  const plane = selectedFlight.value;
 
-  // Saniyede bir azalan sayaç
-  const countdownInterval = setInterval(() => {
+  if (plane.energy < 20) {
+    activeFailure.value = failureTypes.LOW_BATTERY;
+  } else {
+    activeFailure.value = failureTypes.LINK_LOSS;
+  }
+
+  isEmergencySimulated.value = true; // Simülasyon modunu aç
+  emergencyCountdown.value = 10; // 10 saniyelik geri sayım
+
+  const interval = setInterval(() => {   // Geri sayım sayacı
     if (emergencyCountdown.value > 0 && isEmergencySimulated.value) {
-      emergencyCountdown.value--;
+      emergencyCountdown.value--; // Her saniye sayacı bir azalt.
     } else {
-      clearInterval(countdownInterval);
-      // SÜRE DOLDU VE OPERATÖR BASMADIYSA: OTOMATİK İNİŞ
+      clearInterval(interval);
       if (isEmergencySimulated.value && !isEmergency.value) {
-        console.log("OTOMATİK KARAR: Operatör yanıt vermedi, iniş başlatılıyor...");
         startEmergencyLanding();
-        isEmergencySimulated.value = false; // Simülasyon modundan çık
+        isEmergencySimulated.value = false;
       }
     }
   }, 1000);
@@ -605,19 +639,20 @@ const triggerSimulatedFailure = () => {
 
 // ACİL İNİŞ BUTONUNA BASILDIĞINDA
 const handleManualEmergency = () => {
-  isEmergencySimulated.value = false; // Sayacı durdurur
-  startEmergencyLanding(); // Mevcut iniş fonksiyonunu çağırır
+  isEmergencySimulated.value = false; // Sayacı durdur
+  startEmergencyLanding();
 };
 
+// bir uçuş seçildiğinde haritayı uçağa odaklar ve detay panelini hazırlar.
 const focusFlight = (f) => {
   if (f.lat && f.lon) {
-    sidebarOpen.value = true;
+    sidebarOpen.value = true; // Sağ paneli aç.
     if (activeIcao.value !== f.icao24) {
       activeIcao.value = f.icao24;
       isPaused.value = true;
-      drawFullRoute(f.icao24);
+      drawFullRoute(f.icao24); // Seçilen uçağın tüm rotasını haritaya çiz.
     }
-    zoomToPlane(f.lat, f.lon);
+    zoomToPlane(f.lat, f.lon); // Haritayı uçağın güncel koordinatlarına kaydır.
   }
 };
 </script>
