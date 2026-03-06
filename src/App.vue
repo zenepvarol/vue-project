@@ -198,6 +198,8 @@ let map = null;
 const routeLayer = L.layerGroup();
 const isEmergencySimulated = ref(false);
 const emergencyCountdown = ref(10); // ARIZA SAYACI 10 sn simdilik
+const manualTarget = ref(null);
+const isManualRouting = ref(false);
 
 const getDistance = (p1, p2) => {
   return Math.sqrt(Math.pow(p1.lat - p2.lat, 2) + Math.pow(p1.lon - p2.lon, 2));
@@ -214,25 +216,28 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   let heading = plane.heading || 0;
 
   if (moveStep > 0) {
+    // hedefle aradaki dikey (dx) ve yatay (dy) fark hesabı
     const dx = targetLat - plane.lat;
     const dy = targetLon - plane.lon;
+
+    // Mevcut konumla hedef arasındaki mesafe
     const dist = getDistance({ lat: plane.lat, lon: plane.lon }, { lat: targetLat, lon: targetLon });
 
     if (dist > moveStep) {
+      // ucak hedefe moveStep kadar kayar
       nextLat = plane.lat + (dx / dist) * moveStep;
       nextLon = plane.lon + (dy / dist) * moveStep;
-      heading = (Math.atan2(dy, dx) * (180 / Math.PI));
+      heading = (Math.atan2(dy, dx) * (180 / Math.PI));  // aci hesaplama
     } else {
-      return true; // Hedefe ulaşıldı
+      return true; // varış
     }
   }
 
-  // Veri Güncellenir
-  plane.lat = nextLat;
-  plane.lon = nextLon;
+  plane.lat = nextLat; // ucagin yeni enlemi
+  plane.lon = nextLon; // boylmaı
 
   const newPos = [nextLat, nextLon];
-  if (moveStep === 0) {
+  if (moveStep === 0) { // normal ucusta
     marker.slideTo(newPos, { duration: 100 });
   } else {
     marker.setLatLng(newPos);
@@ -240,8 +245,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
 
   marker.setRotationAngle(heading - 45); // -45 derece iconun tasarımı geregi
   if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
-
-  return false; // Henüz hedefe varılmadı
+  return false; // Henüz hedefe varılmadı hareket devaö ediyor
 };
 
 const resetActivePath = (icao) => {
@@ -253,7 +257,6 @@ const resetActivePath = (icao) => {
 };
 
 const getNearestAirport = (planeLat, planeLon) => {
-  // Eğer yüklü bir havalimanı kütüphanesi yoksa boş döner
   if (!airports.value.length) return null;
   const planePos = { lat: planeLat, lon: planeLon };
   // Havalimanı listesini karşılaştırarak en yakın olanı seçer
@@ -269,6 +272,7 @@ const returnToStart = () => {
   isReturningToStart.value = true;
   isEmergency.value = false;
   isPaused.value = false;
+
   if (emergencyRoute.value) {
     map.removeLayer(emergencyRoute.value);
     emergencyRoute.value = null;
@@ -313,7 +317,7 @@ const drawFullRoute = (icao) => {
   const allPoints = path.map(p => [p.lat, p.lon]);
   const currentStep = animationSteps.value[icao];
 
-  const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 });
+  const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 }); // gitmesi gerekn saydam mavi yol
   const pointsSoFar = allPoints.slice(0, currentStep + 1);
   activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 });
 
@@ -376,6 +380,24 @@ onMounted(async () => {
     attribution: '© OpenStreetMap',
     noWrap: true
   }).addTo(map);
+
+  map.on('click', (e) => {
+    if (!activeIcao.value) return;
+
+    const { lat, lng } = e.latlng;
+    manualTarget.value = { lat, lon: lng };
+    isManualRouting.value = true;
+    isPaused.value = false;
+
+    if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
+    const currentPos = [currentFlights.value[activeIcao.value].lat, currentFlights.value[activeIcao.value].lon];
+    emergencyRoute.value = L.polyline([currentPos, [lat, lng]], {
+      color: '#2ecc71',
+      dashArray: '5, 10',
+      weight: 3,
+      opacity: 0.6
+    }).addTo(map);
+  });
 
   try {
     const airResponse = await fetch('/airports_library_v6.json');
@@ -544,6 +566,27 @@ onMounted(async () => {
           isPaused.value = true;
           animationSteps.value[icao] = 0; // adım sıfırlanır
           drawFullRoute(icao);
+        }
+      }
+
+      //YÖNLENDİRME
+      else if (isManualRouting.value && manualTarget.value) {
+        const arrived = movePlane(icao, manualTarget.value.lat, manualTarget.value.lon, 0.05);
+
+        if (plane.velocity < 150) plane.velocity += 2;
+        if (plane.baroaltitude < 3000) plane.baroaltitude += 10;
+
+        if (arrived) {
+          plane.velocity = 0;
+          plane.baroaltitude = 0;
+          isPaused.value = true;
+          isManualRouting.value = false;
+          manualTarget.value = null;
+          if (emergencyRoute.value) {
+            map.removeLayer(emergencyRoute.value);
+            emergencyRoute.value = null;
+          }
+          console.log("Hedeflenen noktaya varıldı.");
         }
       }
 
