@@ -31,7 +31,6 @@
       <ChevronLeft v-if="sidebarOpen" />
       <ChevronRight v-else />
     </button>
-
     <div id="map"></div>
 
     <div v-if="selectedFlight" class="sidebar right">
@@ -160,6 +159,24 @@
           <div v-if="isReturningToStart" class="emergency-status-note" style="color: #3498db; margin-top: 10px;">
             <Info :size="14" /> Ana merkeze dönüş yapılıyor.
           </div>
+
+          <div class="manual-target-input">
+            <h4>Manuel Hedef Belirleme</h4>
+            <div class="input-row">
+              <input v-model="manualLat" type="number" placeholder="Enlem (Lat)" class="coord-input">
+              <input v-model="manualLon" type="number" placeholder="Boylam (Lon)" class="coord-input">
+            </div>
+
+            <p class="divider-text">Veya</p>
+
+            <input v-model="manualAirportId" type="text" placeholder="Havalimanı Kodu (Örn: IST)"
+              class="full-width-input">
+
+            <button class="apply-target-btn" @click="setManualTarget">
+              HEDEFE YÖNLENDİR
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
@@ -200,13 +217,15 @@ const isEmergencySimulated = ref(false);
 const emergencyCountdown = ref(10); // ARIZA SAYACI 10 sn simdilik
 const manualTarget = ref(null);
 const isManualRouting = ref(false);
+const manualLat = ref(null);
+const manualLon = ref(null);
+const manualAirportId = ref(''); // havalimanı kodu ile arama icin
 
 const getDistance = (p1, p2) => {
   return Math.sqrt(Math.pow(p1.lat - p2.lat, 2) + Math.pow(p1.lon - p2.lon, 2));
 };
 
-// Ortak Hareket Fonksiyonu
-const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
+const movePlane = (icao, targetLat, targetLon, moveStep = 0) => { // Ortak Hareket Fonksiyonu
   const plane = currentFlights.value[icao];
   const marker = markers[icao];
   if (!plane || !marker) return false;
@@ -215,8 +234,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   let nextLon = targetLon;
   let heading = plane.heading || 0;
 
-  if (moveStep > 0) {
-    // hedefle aradaki dikey (dx) ve yatay (dy) fark hesabı
+  if (moveStep > 0) { // hedefle aradaki dikey (dx) ve yatay (dy) fark hesabı
     const dx = targetLat - plane.lat;
     const dy = targetLon - plane.lon;
 
@@ -332,6 +350,41 @@ const drawFullRoute = (icao) => {
   routeLayer.addTo(map);
 };
 
+const setManualTarget = () => {
+  if (!activeIcao.value) return;
+
+  let target = null;
+
+  // Havalimanı kodu girildiyse
+  if (manualAirportId.value) {
+    const targetAp = airports.value.find(ap => ap.id.toLowerCase() === manualAirportId.value.toLowerCase());
+    if (targetAp) {
+      target = { lat: targetAp.lat, lon: targetAp.lon };
+    }
+  }
+  // Koordinat girildiyse
+  else if (manualLat.value && manualLon.value) {
+    target = { lat: parseFloat(manualLat.value), lon: parseFloat(manualLon.value) };
+  }
+
+  if (target) {
+    manualTarget.value = target;
+    isManualRouting.value = true;
+    isPaused.value = false;
+
+    // Görsel çizgiyi güncelle
+    if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
+    const currentPos = [currentFlights.value[activeIcao.value].lat, currentFlights.value[activeIcao.value].lon];
+    emergencyRoute.value = L.polyline([currentPos, [target.lat, target.lon]], {
+      color: '#2ecc71',
+      dashArray: '5, 10',
+      weight: 3
+    }).addTo(map);
+  } else {
+    alert("Geçersiz koordinat veya havalimanı kodu girildi!");
+  }
+};
+
 const startEmergencyLanding = () => {
   if (selectedFlight.value && nearestAirport.value) {
     const icao = activeIcao.value;
@@ -374,30 +427,11 @@ onMounted(async () => {
   const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
   map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
   routeLayer.addTo(map);
-
   // TileLayer: Harita katmanı (OpenStreetMap)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     noWrap: true
   }).addTo(map);
-
-  map.on('click', (e) => {
-    if (!activeIcao.value) return;
-
-    const { lat, lng } = e.latlng;
-    manualTarget.value = { lat, lon: lng };
-    isManualRouting.value = true;
-    isPaused.value = false;
-
-    if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
-    const currentPos = [currentFlights.value[activeIcao.value].lat, currentFlights.value[activeIcao.value].lon];
-    emergencyRoute.value = L.polyline([currentPos, [lat, lng]], {
-      color: '#2ecc71',
-      dashArray: '5, 10',
-      weight: 3,
-      opacity: 0.6
-    }).addTo(map);
-  });
 
   try {
     const airResponse = await fetch('/airports_library_v6.json');
@@ -428,8 +462,7 @@ onMounted(async () => {
 
     flightPaths.value = grouped;
 
-    // Uçak ikonu tasarımı (SVG)
-    const planeIcon = L.divIcon({
+    const planeIcon = L.divIcon({ // Uçak ikonu tasarımı (SVG)
       html: `
     <div class="moving-plane">
       <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#9381ff" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -441,16 +474,15 @@ onMounted(async () => {
       iconAnchor: [20, 20]
     });
 
-    // Her ucak başlangıç konumunda olusur
     Object.keys(grouped).forEach(icao => {
-      const firstPoint = grouped[icao][0];
-      currentFlights.value[icao] = firstPoint;
-      currentFlights.value[icao] = { // Başlangıç değerleri (Enerji %100, Hız 0)
+      const firstPoint = grouped[icao][0]; // Her ucak başlangıç konumunda olusur
+      currentFlights.value[icao] = { // Başlangıç değerleri
         ...firstPoint,
         velocity: 0,
         baroaltitude: 0,
         energy: 100
       };
+
       animationSteps.value[icao] = 0;
 
       if (firstPoint.lat && firstPoint.lon) {
@@ -481,7 +513,7 @@ onMounted(async () => {
 
       // Uçak hareket ederken yakıt tüketimi
       if (plane.energy > 0) {
-        plane.energy = Math.max(0, plane.energy - 0.2); // 0.02 İDEAL ??? arastırılcak
+        plane.energy = Math.max(0, plane.energy - 0.02);  // 0.02 İDEAL 
       }
 
       if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) {
@@ -536,7 +568,7 @@ onMounted(async () => {
 
         const distToTarget = getDistance(currentPos, targetPos);
         const distFromStart = getDistance(currentPos, startPos);
-        const stepSize = 0.05; // DEGİSCEK SUAN HIZLI
+        const stepSize = 0.05; // DEGİSCEK 
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
         if (!arrived && distToTarget > 0) {
@@ -571,7 +603,22 @@ onMounted(async () => {
 
       //YÖNLENDİRME
       else if (isManualRouting.value && manualTarget.value) {
-        const arrived = movePlane(icao, manualTarget.value.lat, manualTarget.value.lon, 0.05);
+        const currentPos = { lat: plane.lat, lon: plane.lon };
+        const targetPos = { lat: manualTarget.value.lat, lon: manualTarget.value.lon };
+
+        // Toplam yolu ve kat edilen yolu hesaplama
+        if (!plane.total_manual_dist || plane.total_manual_dist === 0) {
+          plane.total_manual_dist = getDistance(currentPos, targetPos);
+          plane.start_manual_pos = currentPos;
+        }
+
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, 0.05);
+        const totalDist = plane.total_manual_dist;
+        const remainingDist = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
+
+        // ProgressBar kullandığı değişkenleri simüle et
+        plane.trip_distance = totalDist;
+        plane.distance_from_dep = Math.max(0, totalDist - remainingDist);
 
         if (plane.velocity < 150) plane.velocity += 2;
         if (plane.baroaltitude < 3000) plane.baroaltitude += 10;
@@ -579,9 +626,12 @@ onMounted(async () => {
         if (arrived) {
           plane.velocity = 0;
           plane.baroaltitude = 0;
+          plane.distance_from_dep = plane.trip_distance; // %100 yap
           isPaused.value = true;
           isManualRouting.value = false;
           manualTarget.value = null;
+          plane.total_manual_dist = 0; // Sıfırla
+
           if (emergencyRoute.value) {
             map.removeLayer(emergencyRoute.value);
             emergencyRoute.value = null;
@@ -604,15 +654,13 @@ onMounted(async () => {
         const targetVel = nextPoint.velocity;
         const targetAlt = nextPoint.baroaltitude;
 
-        // HIZ
-        if (plane.velocity < targetVel) {
+        if (plane.velocity < targetVel) { // HIZ
           plane.velocity = Math.min(targetVel, plane.velocity + 2.5);
         } else if (plane.velocity > targetVel) {
           plane.velocity = Math.max(targetVel, plane.velocity - 2);
         }
 
-        // RAKIM 
-        if (plane.baroaltitude < targetAlt) {
+        if (plane.baroaltitude < targetAlt) {  // RAKIM 
           plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 10); // KALKIS
         } else if (plane.baroaltitude > targetAlt) {
           plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 10); //İNİS
