@@ -169,8 +169,14 @@
 
             <p class="divider-text">Veya</p>
 
-            <input v-model="manualAirportId" type="text" placeholder="Havalimanı Kodu (Örn: IST)"
-              class="full-width-input">
+            <input v-model="manualAirportId" type="text" placeholder="Havalimanı Seçin veya Yazın"
+              class="full-width-input" list="airport-list">
+
+            <datalist id="airport-list">
+              <option v-for="ap in airports" :key="ap.id" :value="ap.id">
+                {{ ap.name }} ({{ ap.city }})
+              </option>
+            </datalist>
 
             <button class="apply-target-btn" @click="setManualTarget">
               HEDEFE YÖNLENDİR
