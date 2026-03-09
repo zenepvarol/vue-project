@@ -167,8 +167,6 @@
               <input v-model="manualLon" type="number" placeholder="Boylam (Lon)" class="coord-input">
             </div>
 
-            <p class="divider-text">Veya</p>
-
             <input v-model="manualAirportId" type="text" placeholder="Havalimanı Seçin veya Yazın"
               class="full-width-input" list="airport-list">
 
@@ -361,15 +359,13 @@ const setManualTarget = () => {
 
   let target = null;
 
-  // Havalimanı kodu girildiyse
-  if (manualAirportId.value) {
+  if (manualAirportId.value) {   // Havalimanı kodu girildiyse
     const targetAp = airports.value.find(ap => ap.id.toLowerCase() === manualAirportId.value.toLowerCase());
     if (targetAp) {
       target = { lat: targetAp.lat, lon: targetAp.lon };
     }
   }
-  // Koordinat girildiyse
-  else if (manualLat.value && manualLon.value) {
+  else if (manualLat.value && manualLon.value) {   // Koordinat girildiyse
     target = { lat: parseFloat(manualLat.value), lon: parseFloat(manualLon.value) };
   }
 
@@ -611,23 +607,29 @@ onMounted(async () => {
       else if (isManualRouting.value && manualTarget.value) {
         const currentPos = { lat: plane.lat, lon: plane.lon };
         const targetPos = { lat: manualTarget.value.lat, lon: manualTarget.value.lon };
+        const remainingDist = getDistance(currentPos, targetPos);
 
-        // Toplam yolu ve kat edilen yolu hesaplama
         if (!plane.total_manual_dist || plane.total_manual_dist === 0) {
-          plane.total_manual_dist = getDistance(currentPos, targetPos);
-          plane.start_manual_pos = currentPos;
+          plane.total_manual_dist = remainingDist; 
+          plane.start_altitude = plane.baroaltitude || 3000; // Alçalmanın başlayacağı yükseklik
         }
 
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, 0.05);
-        const totalDist = plane.total_manual_dist;
-        const remainingDist = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
+        const progressPercent = ((plane.total_manual_dist - remainingDist) / plane.total_manual_dist) * 100; // tamamlanma yüzdesi
 
-        // ProgressBar kullandığı değişkenleri simüle et
-        plane.trip_distance = totalDist;
-        plane.distance_from_dep = Math.max(0, totalDist - remainingDist);
+        if (progressPercent < 70) {
+          if (plane.velocity < 150) plane.velocity += 2;
+          if (plane.baroaltitude < 3000) plane.baroaltitude += 15;
+          if (plane.baroaltitude > 3050) plane.baroaltitude -= 5; // Fazla çıkarsa dengeler
+        } else {
+          const remainingProgressFactor = (100 - progressPercent) / 30;
 
-        if (plane.velocity < 150) plane.velocity += 2;
-        if (plane.baroaltitude < 3000) plane.baroaltitude += 10;
+          plane.velocity = Math.max(20, 150 * remainingProgressFactor);
+          plane.baroaltitude = Math.max(10, 3000 * remainingProgressFactor);
+        }
+
+        plane.trip_distance = plane.total_manual_dist;
+        plane.distance_from_dep = Math.max(0, plane.total_manual_dist - remainingDist);
 
         if (arrived) {
           plane.velocity = 0;
