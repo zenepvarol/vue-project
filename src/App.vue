@@ -226,7 +226,14 @@ const manualLon = ref(null);
 const manualAirportId = ref(''); // havalimanı kodu ile arama icin
 
 const getDistance = (p1, p2) => {
-  return Math.sqrt(Math.pow(p1.lat - p2.lat, 2) + Math.pow(p1.lon - p2.lon, 2));
+  const R = 6371; // dunyanin yaricapi - km
+  const dLat = (p2.lat - p1.lat) * Math.PI / 180; // iki nokta arasi enlem ve boylam farki dereceden radyana
+  const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2); // Haversine formülü
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));   // iki nokta arası merkez açı
+  return R * c; // Sonuç km
 };
 
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => { // Ortak Hareket Fonksiyonu
@@ -365,8 +372,16 @@ const setManualTarget = () => {
       target = { lat: targetAp.lat, lon: targetAp.lon };
     }
   }
-  else if (manualLat.value && manualLon.value) {   // Koordinat girildiyse
-    target = { lat: parseFloat(manualLat.value), lon: parseFloat(manualLon.value) };
+  else if (manualLat.value !== null && manualLon.value !== null) { // Koordinat girildiyse
+    const lat = parseFloat(manualLat.value);
+    const lon = parseFloat(manualLon.value);
+
+    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      target = { lat, lon };
+    } else {
+      alert("Hatalı Koordinat! Enlem -90/+90, Boylam -180/+180 aralığında olmalıdır.");
+      return;
+    }
   }
 
   if (target) {
@@ -529,7 +544,7 @@ onMounted(async () => {
         const currentPos = { lat: plane.lat, lon: plane.lon };
 
         const dist = getDistance(currentPos, targetPos); // kalan mesafe
-        const stepSize = 0.05; // iniş hızı DEGİSCEK
+        const stepSize = 5; // iniş hızı
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
         if (!arrived && dist > 0) { // kademeli sıfırlama hız ve rakımı
@@ -570,7 +585,7 @@ onMounted(async () => {
 
         const distToTarget = getDistance(currentPos, targetPos);
         const distFromStart = getDistance(currentPos, startPos);
-        const stepSize = 0.05; // DEGİSCEK 
+        const stepSize = 5; // inis hizi 
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
 
         if (!arrived && distToTarget > 0) {
@@ -607,44 +622,51 @@ onMounted(async () => {
       else if (isManualRouting.value && manualTarget.value) {
         const currentPos = { lat: plane.lat, lon: plane.lon };
         const targetPos = { lat: manualTarget.value.lat, lon: manualTarget.value.lon };
-        const remainingDist = getDistance(currentPos, targetPos);
+        const remainingDist = getDistance(currentPos, targetPos); // Hedefe kalan gerçek mesafeyi Haversine formülüyle hesaplama
 
         if (!plane.total_manual_dist || plane.total_manual_dist === 0) {
-          plane.total_manual_dist = remainingDist; 
-          plane.start_altitude = plane.baroaltitude || 3000; // Alçalmanın başlayacağı yükseklik
+          plane.total_manual_dist = remainingDist;
+          plane.max_manual_alt = 800;
+          plane.is_descending = false;
         }
 
-        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, 0.05);
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, 1);
         const progressPercent = ((plane.total_manual_dist - remainingDist) / plane.total_manual_dist) * 100; // tamamlanma yüzdesi
 
-        if (progressPercent < 70) {
-          if (plane.velocity < 150) plane.velocity += 2;
-          if (plane.baroaltitude < 3000) plane.baroaltitude += 15;
-          if (plane.baroaltitude > 3050) plane.baroaltitude -= 5; // Fazla çıkarsa dengeler
+        if (progressPercent < 70) { // %70 e kadar tırmanış
+          if (plane.velocity < 150) plane.velocity += 1;
+          if (plane.baroaltitude < plane.max_manual_alt) {
+            plane.baroaltitude += 2.5; // saniyede 25 feet
+          }
         } else {
-          const remainingProgressFactor = (100 - progressPercent) / 30;
+          if (!plane.is_descending) {
+            plane.descent_start_alt = plane.baroaltitude; // anlık rakım inis icin tutulur
+            plane.is_descending = true;
+          }
 
-          plane.velocity = Math.max(20, 150 * remainingProgressFactor);
-          plane.baroaltitude = Math.max(10, 3000 * remainingProgressFactor);
+          const factor = Math.max(0, (100 - progressPercent) / 30); // %70 ile %100 arası süzülüş çarpanı
+          plane.velocity = Math.max(15, 150 * factor);
+          plane.baroaltitude = plane.descent_start_alt * factor;
         }
 
         plane.trip_distance = plane.total_manual_dist;
         plane.distance_from_dep = Math.max(0, plane.total_manual_dist - remainingDist);
 
-        if (arrived) {
+        if (arrived || remainingDist < 0.1) {
           plane.velocity = 0;
           plane.baroaltitude = 0;
-          plane.distance_from_dep = plane.trip_distance; // %100 yap
+          plane.is_descending = false;
+          plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true;
           isManualRouting.value = false;
           manualTarget.value = null;
-          plane.total_manual_dist = 0; // Sıfırla
+          plane.total_manual_dist = 0;
+          animationSteps.value[icao] = 1;
 
           if (emergencyRoute.value) {
             map.removeLayer(emergencyRoute.value);
             emergencyRoute.value = null;
           }
-          console.log("Hedeflenen noktaya varıldı.");
         }
       }
 
