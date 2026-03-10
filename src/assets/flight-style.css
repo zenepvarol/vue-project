@@ -581,24 +581,6 @@ body {
   justify-content: center;
 }
 
-/*kırmzı*/
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
-  }
-
-  70% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
-  }
-
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
-  }
-}
-
 .link-loss-blur {
   filter: blur(4px) grayscale(1);
   pointer-events: none;
@@ -615,6 +597,24 @@ body {
   font-weight: bold;
   font-size: 20px;
   z-index: 10;
+}
+
+/*kırmzı*/
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+  }
+
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+  }
 }
 
 /* Yeşil Yanıp Sönme */
@@ -677,4 +677,17 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.swal2-title {
+  font-size: 22px !important;
+}
+
+.swal2-html-container {
+  font-size: 16px !important;
+}
+
+.swal2-popup {
+  padding: 15px !important;
+  border-radius: 15px !important;
 }

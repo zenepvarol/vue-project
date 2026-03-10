@@ -162,21 +162,23 @@
 
           <div class="manual-target-input">
             <h4>Manuel Hedef Belirleme</h4>
-            <div class="input-row">
-              <input v-model="manualLat" type="number" placeholder="Enlem (Lat)" class="coord-input">
-              <input v-model="manualLon" type="number" placeholder="Boylam (Lon)" class="coord-input">
-            </div>
 
             <input v-model="manualAirportId" type="text" placeholder="Havalimanı Seçin veya Yazın"
               class="full-width-input" list="airport-list">
 
             <datalist id="airport-list">
+              <option value="MANUAL_COORD">Manuel Koordinat Girişi</option>
               <option v-for="ap in airports" :key="ap.id" :value="ap.id">
                 {{ ap.name }} ({{ ap.city }})
               </option>
             </datalist>
 
-            <button class="apply-target-btn" @click="setManualTarget">
+            <div v-if="manualAirportId === 'MANUAL_COORD'" class="input-row" style="margin-top: 10px;">
+              <input v-model="manualLat" type="number" placeholder="Enlem (Lat)" class="coord-input">
+              <input v-model="manualLon" type="number" placeholder="Boylam (Lon)" class="coord-input">
+            </div>
+
+            <button class="apply-target-btn" @click="setManualTarget" style="margin-top: 10px;">
               HEDEFE YÖNLENDİR
             </button>
           </div>
@@ -199,6 +201,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker'; // marker döndürme
 import 'leaflet.marker.slideto'; // akıcı geçiş (animation)
+import Swal from 'sweetalert2';
 
 //  REAKTİF DEĞİŞKENLER 
 const searchQuery = ref('');
@@ -363,24 +366,31 @@ const drawFullRoute = (icao) => {
 
 const setManualTarget = () => {
   if (!activeIcao.value) return;
-
   let target = null;
 
-  if (manualAirportId.value) {   // Havalimanı kodu girildiyse
+  if (manualAirportId.value === 'MANUAL_COORD') { // manuel koordinat seçildiyse
+    if (manualLat.value !== null && manualLon.value !== null) {
+      const lat = parseFloat(manualLat.value);
+      const lon = parseFloat(manualLon.value);
+
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        target = { lat, lon };
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Hatalı Koordinat',
+          text: 'Enlem -90/+90, Boylam -180/+180 aralığında olmalıdır.',
+          confirmButtonColor: '#9381ff'
+        });
+        return;
+      }
+    }
+  }
+  else if (manualAirportId.value) { // havalimanı seçildiyse
+
     const targetAp = airports.value.find(ap => ap.id.toLowerCase() === manualAirportId.value.toLowerCase());
     if (targetAp) {
       target = { lat: targetAp.lat, lon: targetAp.lon };
-    }
-  }
-  else if (manualLat.value !== null && manualLon.value !== null) { // Koordinat girildiyse
-    const lat = parseFloat(manualLat.value);
-    const lon = parseFloat(manualLon.value);
-
-    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-      target = { lat, lon };
-    } else {
-      alert("Hatalı Koordinat! Enlem -90/+90, Boylam -180/+180 aralığında olmalıdır.");
-      return;
     }
   }
 
@@ -389,7 +399,6 @@ const setManualTarget = () => {
     isManualRouting.value = true;
     isPaused.value = false;
 
-    // Görsel çizgiyi güncelle
     if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
     const currentPos = [currentFlights.value[activeIcao.value].lat, currentFlights.value[activeIcao.value].lon];
     emergencyRoute.value = L.polyline([currentPos, [target.lat, target.lon]], {
@@ -397,8 +406,21 @@ const setManualTarget = () => {
       dashArray: '5, 10',
       weight: 3
     }).addTo(map);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Rota Başlatıldı',
+      text: 'Uçak belirlenen hedefe yönlendiriliyor.',
+      timer: 1500,
+      showConfirmButton: false
+    });
   } else {
-    alert("Geçersiz koordinat veya havalimanı kodu girildi!");
+    Swal.fire({
+      icon: 'warning',
+      title: 'Hedef Bulunamadı',
+      text: 'Lütfen geçerli bir havalimanı seçin veya koordinatları manuel olarak girin.',
+      confirmButtonColor: '#9381ff'
+    });
   }
 };
 
