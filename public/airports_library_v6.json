@@ -322,5 +322,203 @@
     "lat": 45.4706,
     "lon": -73.7408,
     "type": "Hub"
+  },
+  {
+    "id": "DLM",
+    "name": "Dalaman Airport",
+    "city": "Mugla",
+    "country": "Turkey",
+    "lat": 36.7131,
+    "lon": 28.7925,
+    "type": "Regional"
+  },
+  {
+    "id": "BJV",
+    "name": "Milas-Bodrum Airport",
+    "city": "Mugla",
+    "country": "Turkey",
+    "lat": 37.2506,
+    "lon": 27.6643,
+    "type": "Regional"
+  },
+  {
+    "id": "TZX",
+    "name": "Trabzon Airport",
+    "city": "Trabzon",
+    "country": "Turkey",
+    "lat": 40.9951,
+    "lon": 39.7897,
+    "type": "Regional"
+  },
+  {
+    "id": "ADA",
+    "name": "Adana Sakirpasa Airport",
+    "city": "Adana",
+    "country": "Turkey",
+    "lat": 36.9822,
+    "lon": 35.2804,
+    "type": "Regional"
+  },
+  {
+    "id": "ERZ",
+    "name": "Erzurum Airport",
+    "city": "Erzurum",
+    "country": "Turkey",
+    "lat": 39.9563,
+    "lon": 41.1702,
+    "type": "Regional"
+  },
+  {
+    "id": "KYA",
+    "name": "Konya Airport",
+    "city": "Konya",
+    "country": "Turkey",
+    "lat": 37.979,
+    "lon": 32.5619,
+    "type": "Emergency"
+  },
+  {
+    "id": "GZP",
+    "name": "Gazipasa Airport",
+    "city": "Alanya",
+    "country": "Turkey",
+    "lat": 36.2993,
+    "lon": 32.3014,
+    "type": "Regional"
+  },
+  {
+    "id": "CKZ",
+    "name": "Canakkale Airport",
+    "city": "Canakkale",
+    "country": "Turkey",
+    "lat": 40.1377,
+    "lon": 26.4267,
+    "type": "Emergency"
+  },
+  {
+    "id": "VAS",
+    "name": "Sivas Nuri Demirag Airport",
+    "city": "Sivas",
+    "country": "Turkey",
+    "lat": 39.8138,
+    "lon": 36.9035,
+    "type": "Regional"
+  },
+  {
+    "id": "VAN",
+    "name": "Van Ferit Melen Airport",
+    "city": "Van",
+    "country": "Turkey",
+    "lat": 38.4682,
+    "lon": 43.3323,
+    "type": "Regional"
+  },
+  {
+    "id": "DIY",
+    "name": "Diyarbakir Airport",
+    "city": "Diyarbakir",
+    "country": "Turkey",
+    "lat": 37.8939,
+    "lon": 40.201,
+    "type": "Regional"
+  },
+  {
+    "id": "MLX",
+    "name": "Malatya Erhac Airport",
+    "city": "Malatya",
+    "country": "Turkey",
+    "lat": 38.4353,
+    "lon": 38.0909,
+    "type": "Regional"
+  },
+  {
+    "id": "GZT",
+    "name": "Gaziantep Airport",
+    "city": "Gaziantep",
+    "country": "Turkey",
+    "lat": 36.9471,
+    "lon": 37.4786,
+    "type": "Regional"
+  },
+  {
+    "id": "SZF",
+    "name": "Samsun Carsamba Airport",
+    "city": "Samsun",
+    "country": "Turkey",
+    "lat": 41.2597,
+    "lon": 36.5483,
+    "type": "Regional"
+  },
+  {
+    "id": "HTY",
+    "name": "Hatay Airport",
+    "city": "Antakya",
+    "country": "Turkey",
+    "lat": 36.362,
+    "lon": 36.2821,
+    "type": "Regional"
+  },
+  {
+    "id": "EDO",
+    "name": "Balikesir Koca Seyit Airport",
+    "city": "Edremit",
+    "country": "Turkey",
+    "lat": 39.5543,
+    "lon": 27.0138,
+    "type": "Regional"
+  },
+  {
+    "id": "DEN",
+    "name": "Denizli Cardak Airport",
+    "city": "Denizli",
+    "country": "Turkey",
+    "lat": 37.7855,
+    "lon": 29.7011,
+    "type": "Regional"
+  },
+  {
+    "id": "ASR",
+    "name": "Kayseri Erkilet Airport",
+    "city": "Kayseri",
+    "country": "Turkey",
+    "lat": 38.7704,
+    "lon": 35.4957,
+    "type": "Regional"
+  },
+  {
+    "id": "BAL",
+    "name": "Batman Airport",
+    "city": "Batman",
+    "country": "Turkey",
+    "lat": 37.9287,
+    "lon": 41.1166,
+    "type": "Regional"
+  },
+  {
+    "id": "MQM",
+    "name": "Mardin Airport",
+    "city": "Mardin",
+    "country": "Turkey",
+    "lat": 37.223,
+    "lon": 40.632,
+    "type": "Regional"
+  },
+  {
+    "id": "EST",
+    "name": "Hasan Polatkan Airport",
+    "city": "Eskisehir",
+    "country": "Turkey",
+    "lat": 39.8122,
+    "lon": 30.5256,
+    "type": "Regional"
+  },
+  {
+    "id": "LTBI",
+    "name": "Eskisehir Air Base",
+    "city": "Eskisehir",
+    "country": "Turkey",
+    "lat": 39.7861,
+    "lon": 30.5811,
+    "type": "Emergency"
   }
 ]

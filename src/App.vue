@@ -14,17 +14,30 @@
         </div>
       </div>
 
-      <ul class="flight-list">
-        <li v-for="f in filteredFlights" :key="f.icao24" @click="focusFlight(f)"
-          :class="{ active: activeIcao === f.icao24 }">
-          <div class="flight-info">
-            <span class="callsign">{{ f.callsign || 'Bilinmiyor' }}</span>
+      <div class="fleet-status-section" style="padding: 10px; border-top: none;">
+        <div class="fleet-grid">
+          <div v-for="f in filteredFlights" :key="f.icao24" class="fleet-mini-card"
+            :class="{ 'is-active': activeIcao === f.icao24 }" @click="focusFlight(f)">
+            <div class="mini-card-header">
+              <span class="mini-callsign">{{ f.callsign || 'İHA' }}</span>
+              <span class="mini-status-dot" :style="{ backgroundColor: f.energy < 20 ? '#e74c3c' : '#2ecc71' }"></span>
+            </div>
+            <div class="mini-stats">
+              <span>
+                <Gauge :size="12" /> {{ Math.round(f.velocity) }} kt
+              </span>
+              <span>
+                <Mountain :size="12" /> {{ Math.round(f.baroaltitude) }} ft
+              </span>
+            </div>
+
+            <div class="mini-energy-bar">
+              <div class="mini-energy-fill"
+                :style="{ width: f.energy + '%', backgroundColor: f.energy < 20 ? '#e74c3c' : '#2ecc71' }"></div>
+            </div>
           </div>
-          <div class="arrow" :style="{ transform: `rotate(${(f.heading || 0) - 80}deg)` }">
-            <Plane :size="18" />
-          </div>
-        </li>
-      </ul>
+        </div>
+      </div>
     </div>
 
     <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
@@ -32,7 +45,6 @@
       <ChevronRight v-else />
     </button>
     <div id="map"></div>
-
     <div v-if="selectedFlight" class="sidebar right">
       <div class="sidebar-header">
         <div class="header-top">
@@ -44,7 +56,7 @@
       </div>
 
       <div class="flight-details">
-        <div class="details-card">
+        <div class="details-card active-focus">
           <div class="details-header">
             <div class="header-text">
               <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
@@ -62,13 +74,11 @@
                 <Activity :size="14" /> Durum
               </label>
               <span :style="{
-                color: isEmergency ? '#e74c3c' : (isReturningToStart ? '#3498db' : (isPaused ? '#f39c12' : '#2ecc71')),
-                fontWeight: 'bold'
+                color: isEmergency ? '#e74c3c' : (isReturningToStart ? '#3498db' : (isPaused ? '#f39c12' : '#2ecc71')), fontWeight: 'bold'
               }">
                 {{
                   isEmergency ? 'ACİL İNİŞTE' :
-                    (isReturningToStart ? 'ANA MERKEZE DÖNÜLÜYOR' :
-                      (isPaused ? 'DURDURULDU / BEKLEMEDE' : 'GÖREVDE'))
+                    (isReturningToStart ? 'ANA MERKEZE DÖNÜLÜYOR' : (isPaused ? 'DURDURULDU / BEKLEMEDE' : 'GÖREVDE'))
                 }}
               </span>
             </div>
@@ -78,10 +88,8 @@
                 <Battery :size="14" /> YAKIT (%{{ Math.round(selectedFlight.energy) }})
               </label>
               <div class="progress-bar energy-bar">
-                <div class="progress-fill" :style="{
-                  width: selectedFlight.energy + '%',
-                  backgroundColor: selectedFlight.energy < 20 ? '#e74c3c' : '#2ecc71'
-                }">
+                <div class="progress-fill"
+                  :style="{ width: selectedFlight.energy + '%', backgroundColor: selectedFlight.energy < 20 ? '#e74c3c' : '#2ecc71' }">
                 </div>
               </div>
             </div>
@@ -93,6 +101,7 @@
                 </label>
                 <span>{{ Math.round(selectedFlight.velocity) }} kt</span>
               </div>
+
               <div class="detail-item">
                 <label>
                   <Mountain :size="14" /> Rakım
@@ -109,7 +118,7 @@
                 km</span>
             </div>
 
-            <div v-if="selectedFlight.trip_distance > 0" class="detail-item progress-container">
+            <div v-if="selectedFlight.trip_distance > 0" class="detail-item progress-container full-width">
               <label>Yolun %{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}
                 tamamlandı</label>
               <div class="progress-bar">
@@ -142,35 +151,18 @@
                 <AlertOctagon :size="18" class="pulse-icon" />
                 {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
               </div>
-              <p class="decision-subtext" style="font-size: 11px; margin-bottom: 5px; font-weight: bold;">
-                {{ activeFailure?.message || 'Bilinmeyen bir hata oluştu.' }}
-              </p>
-              <p class="decision-subtext">Operatör kararı bekleniyor...</p>
-
-              <button class="emergency-button" @click="handleManualEmergency">
-                ACİL İNİŞ YAP
-              </button>
+              <button class="emergency-button" @click="handleManualEmergency">ACİL İNİŞ YAP</button>
             </div>
-          </div>
-
-          <div v-if="isEmergency" class="emergency-status-note" style="color: #e74c3c; margin-top: 10px;">
-            <AlertCircle :size="14" /> Acil iniş noktasına gidiliyor.
-          </div>
-          <div v-if="isReturningToStart" class="emergency-status-note" style="color: #3498db; margin-top: 10px;">
-            <Info :size="14" /> Ana merkeze dönüş yapılıyor.
           </div>
 
           <div class="manual-target-input">
             <h4>Manuel Hedef Belirleme</h4>
-
             <input v-model="manualAirportId" type="text" placeholder="Havalimanı Seçin veya Yazın"
               class="full-width-input" list="airport-list">
 
             <datalist id="airport-list">
               <option value="MANUAL_COORD">Manuel Koordinat Girişi</option>
-              <option v-for="ap in airports" :key="ap.id" :value="ap.id">
-                {{ ap.name }} ({{ ap.city }})
-              </option>
+              <option v-for="ap in airports" :key="ap.id" :value="ap.id">{{ ap.name }} ({{ ap.city }})</option>
             </datalist>
 
             <div v-if="manualAirportId === 'MANUAL_COORD'" class="input-row" style="margin-top: 10px;">
@@ -178,11 +170,9 @@
               <input v-model="manualLon" type="number" placeholder="Boylam (Lon)" class="coord-input">
             </div>
 
-            <button class="apply-target-btn" @click="setManualTarget" style="margin-top: 10px;">
-              HEDEFE YÖNLENDİR
-            </button>
+            <button class="apply-target-btn" @click="setManualTarget" style="margin-top: 10px;">HEDEFE
+              YÖNLENDİR</button>
           </div>
-
         </div>
       </div>
     </div>
@@ -256,8 +246,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => { // Ortak Harek
     const dist = getDistance({ lat: plane.lat, lon: plane.lon }, { lat: targetLat, lon: targetLon });
 
     if (dist > moveStep) {
-      // ucak hedefe moveStep kadar kayar
-      nextLat = plane.lat + (dx / dist) * moveStep;
+      nextLat = plane.lat + (dx / dist) * moveStep; // ucak hedefe moveStep kadar kayar
       nextLon = plane.lon + (dy / dist) * moveStep;
       heading = (Math.atan2(dy, dx) * (180 / Math.PI));  // aci hesaplama
     } else {
@@ -348,14 +337,11 @@ const drawFullRoute = (icao) => {
   const path = flightPaths.value[icao];
   const allPoints = path.map(p => [p.lat, p.lon]);
   const currentStep = animationSteps.value[icao];
-
-  const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 }); // gitmesi gerekn saydam mavi yol
+  const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 }); // gitmesi gereken saydam mavi yol
   const pointsSoFar = allPoints.slice(0, currentStep + 1);
   activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 });
-
-  //Başlangıç ve Bitiş Noktaları
-  const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
-  const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
+  const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 }); // baslangic noktasi
+  const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 }); // bitis noktasi
 
   staticPath.addTo(routeLayer);
   activeRoutes[icao].addTo(routeLayer);
@@ -612,15 +598,14 @@ onMounted(async () => {
 
         if (!arrived && distToTarget > 0) {
           const estimatedStepsLeft = distToTarget / stepSize;
-          // hedefe daha yakınken iniş
-          if (distToTarget < distFromStart) {
+
+          if (distToTarget < distFromStart) { // hedefe daha yakınken iniş
             if (estimatedStepsLeft > 1) {
               plane.velocity -= (plane.velocity / estimatedStepsLeft);
               plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
             }
           }
-          // kalkısa daha yakınken yukselis
-          else {
+          else { // kalkısa daha yakınken yukselis
             if (plane.velocity < 180) plane.velocity += 1;
             let climbRate = 8; // Temel tırmanış hızı
             if (plane.baroaltitude > 2000) climbRate = 3;
@@ -691,52 +676,55 @@ onMounted(async () => {
           }
         }
       }
+// NORMAL ROTA (Işınlanma Karşıtı Kesin Çözüm)
+        else {
+          const step = animationSteps.value[icao] || 0;
+          if (step + 1 >= path.length) {
+            plane.velocity = 0; plane.baroaltitude = 0; return;
+          }
 
-      // NORMAL İLERLEME 
-      else {
-        const step = animationSteps.value[icao];
-        if (step + 1 >= path.length) {
-          isPaused.value = true; // rota bittiyse dur
-          return;
+          const nextPoint = path[step + 1];
+          const currentPos = { lat: plane.lat, lon: plane.lon };
+          const targetPos = { lat: nextPoint.lat, lon: nextPoint.lon };
+          
+          // 1. ADIM: HIZI KONTROL ET (Kalkışta sıfır olmasın)
+          // Uçak 0 hızla kalkmaya çalışırsa atlama yapar. Başlangıç taban hızı veriyoruz.
+          const effectiveVelocity = Math.max(plane.velocity, 20); 
+
+          // 2. ADIM: ADIM BOYUTUNU SABİTLE
+          // Bu sayı (1500), uçağın bir karede atabileceği maksimum adımı sınırlar.
+          // Atlama oluyorsa 1500'ü 3000 yap (sayı büyüdükçe adım küçülür, pürüzsüzleşir)
+          const smoothStep = effectiveVelocity / 2000; 
+
+          // 3. ADIM: HAREKET (movePlane sadece küçük bir adım atar, hedefe ışınlanmaz)
+          const arrived = movePlane(icao, targetPos.lat, targetPos.lon, smoothStep);
+
+          // 4. ADIM: MESAFE VE GÖSTERGELER
+          const startPointOfStep = path[step];
+          const distFromStart = getDistance({ lat: startPointOfStep.lat, lon: startPointOfStep.lon }, currentPos);
+          plane.distance_from_dep = (startPointOfStep.distance_from_dep || 0) + distFromStart;
+
+          // Hızlanma (Kalkışta seri ivmelenme)
+          if (plane.velocity < nextPoint.velocity) plane.velocity += 3;
+          else if (plane.velocity > nextPoint.velocity) plane.velocity -= 1;
+
+          // Rakım (Kademeli tırmanış)
+          if (plane.baroaltitude < nextPoint.baroaltitude) plane.baroaltitude += 15;
+          else if (plane.baroaltitude > nextPoint.baroaltitude) plane.baroaltitude -= 10;
+
+          // 5. ADIM: SONRAKİ JSON SATIRINA GEÇİŞ ŞARTI
+          // Uçak hedefe gerçekten yaklaştığında (0.2km) bir sonraki rotayı hedeflesin
+          const distToTarget = getDistance(currentPos, targetPos);
+          if (arrived || distToTarget < 0.2) {
+            animationSteps.value[icao] = step + 1;
+          }
         }
-        const nextStep = step + 1;
-        const nextPoint = path[nextStep];
-
-        // Hedef değerler JSON'dan
-        const targetVel = nextPoint.velocity;
-        const targetAlt = nextPoint.baroaltitude;
-
-        if (plane.velocity < targetVel) { // HIZ
-          plane.velocity = Math.min(targetVel, plane.velocity + 2.5);
-        } else if (plane.velocity > targetVel) {
-          plane.velocity = Math.max(targetVel, plane.velocity - 2);
-        }
-
-        if (plane.baroaltitude < targetAlt) {  // RAKIM 
-          plane.baroaltitude = Math.min(targetAlt, plane.baroaltitude + 10); // KALKIS
-        } else if (plane.baroaltitude > targetAlt) {
-          plane.baroaltitude = Math.max(targetAlt, plane.baroaltitude - 10); //İNİS
-        }
-
-        plane.lat = nextPoint.lat;
-        plane.lon = nextPoint.lon;
-        plane.heading = nextPoint.heading;
-        plane.distance_from_dep = nextPoint.distance_from_dep;
-        plane.trip_distance = nextPoint.trip_distance;
-
-        const currentPos = markers[icao].getLatLng();
-        const distToNext = getDistance(currentPos, { lat: nextPoint.lat, lon: nextPoint.lon });
-
-        animationSteps.value[icao] = nextStep;
-        movePlane(icao, nextPoint.lat, nextPoint.lon, distToNext > 0.5 ? 0.01 : 0);
-      }
     }, 100);
   } catch (error) {
     console.error("Hata:", error);
   }
 });
 
-// Sistemdeki olası acil durum senaryolarını, mesajlarını ve görsel renklerini tanımlar.
 const failureTypes = {
   LOW_BATTERY: {
     label: 'DÜŞÜK YAKIT',
@@ -780,8 +768,7 @@ const triggerSimulatedFailure = () => {
   }, 1000);
 };
 
-// ACİL İNİŞ BUTONUNA BASILDIĞINDA
-const handleManualEmergency = () => {
+const handleManualEmergency = () => { // acil iniş butonuna basılınca
   isEmergencySimulated.value = false; // Sayacı durdur
   startEmergencyLanding();
 };
