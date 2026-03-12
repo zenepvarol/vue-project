@@ -676,50 +676,35 @@ onMounted(async () => {
           }
         }
       }
-// NORMAL ROTA (Işınlanma Karşıtı Kesin Çözüm)
-        else {
-          const step = animationSteps.value[icao] || 0;
-          if (step + 1 >= path.length) {
-            plane.velocity = 0; plane.baroaltitude = 0; return;
-          }
-
-          const nextPoint = path[step + 1];
-          const currentPos = { lat: plane.lat, lon: plane.lon };
-          const targetPos = { lat: nextPoint.lat, lon: nextPoint.lon };
-          
-          // 1. ADIM: HIZI KONTROL ET (Kalkışta sıfır olmasın)
-          // Uçak 0 hızla kalkmaya çalışırsa atlama yapar. Başlangıç taban hızı veriyoruz.
-          const effectiveVelocity = Math.max(plane.velocity, 20); 
-
-          // 2. ADIM: ADIM BOYUTUNU SABİTLE
-          // Bu sayı (1500), uçağın bir karede atabileceği maksimum adımı sınırlar.
-          // Atlama oluyorsa 1500'ü 3000 yap (sayı büyüdükçe adım küçülür, pürüzsüzleşir)
-          const smoothStep = effectiveVelocity / 2000; 
-
-          // 3. ADIM: HAREKET (movePlane sadece küçük bir adım atar, hedefe ışınlanmaz)
-          const arrived = movePlane(icao, targetPos.lat, targetPos.lon, smoothStep);
-
-          // 4. ADIM: MESAFE VE GÖSTERGELER
-          const startPointOfStep = path[step];
-          const distFromStart = getDistance({ lat: startPointOfStep.lat, lon: startPointOfStep.lon }, currentPos);
-          plane.distance_from_dep = (startPointOfStep.distance_from_dep || 0) + distFromStart;
-
-          // Hızlanma (Kalkışta seri ivmelenme)
-          if (plane.velocity < nextPoint.velocity) plane.velocity += 3;
-          else if (plane.velocity > nextPoint.velocity) plane.velocity -= 1;
-
-          // Rakım (Kademeli tırmanış)
-          if (plane.baroaltitude < nextPoint.baroaltitude) plane.baroaltitude += 15;
-          else if (plane.baroaltitude > nextPoint.baroaltitude) plane.baroaltitude -= 10;
-
-          // 5. ADIM: SONRAKİ JSON SATIRINA GEÇİŞ ŞARTI
-          // Uçak hedefe gerçekten yaklaştığında (0.2km) bir sonraki rotayı hedeflesin
-          const distToTarget = getDistance(currentPos, targetPos);
-          if (arrived || distToTarget < 0.2) {
-            animationSteps.value[icao] = step + 1;
-          }
+      // NORMAL ROTA
+      else {
+        const step = animationSteps.value[icao] || 0;
+        if (step + 1 >= path.length) {
+          plane.velocity = 0; plane.baroaltitude = 0; return;
         }
-    }, 100);
+
+        const nextPoint = path[step + 1];
+        const currentPos = { lat: plane.lat, lon: plane.lon };
+        const targetPos = { lat: nextPoint.lat, lon: nextPoint.lon };
+        const effectiveVelocity = Math.max(plane.velocity, 20);
+        const smoothStep = effectiveVelocity / 2000;
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, smoothStep);
+        const startPointOfStep = path[step];
+        const distFromStart = getDistance({ lat: startPointOfStep.lat, lon: startPointOfStep.lon }, currentPos);
+        plane.distance_from_dep = (startPointOfStep.distance_from_dep || 0) + distFromStart;
+
+        if (plane.velocity < nextPoint.velocity) plane.velocity += 3;
+        else if (plane.velocity > nextPoint.velocity) plane.velocity -= 1;
+
+        if (plane.baroaltitude < nextPoint.baroaltitude) plane.baroaltitude += 15;
+        else if (plane.baroaltitude > nextPoint.baroaltitude) plane.baroaltitude -= 10;
+
+        const distToTarget = getDistance(currentPos, targetPos);
+        if (arrived || distToTarget < 0.2) {
+          animationSteps.value[icao] = step + 1;
+        }
+      }
+    }, 10);
   } catch (error) {
     console.error("Hata:", error);
   }
