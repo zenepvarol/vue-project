@@ -50,19 +50,14 @@
         <div class="sidebar-header" style="padding: 0 0 15px 0;">
           <h3>Görev Kontrol Merkezi</h3>
         </div>
-        <div class="details-card active-focus">
+        <div class="details-card active-focus" style="border-left: 4px solid #e74c3c;">
           <div class="manual-target-input" style="border-top: none; padding-top: 0;">
-            <h4>Yeni Görev Atama</h4>
-            <p style="font-size: 11px; opacity: 0.7; margin-bottom: 15px;">Hangardaki İHA'lar için rota belirleyin.</p>
+            <h4 style="color: #e74c3c;">VARILACAK HEDEF</h4>
+            <p style="font-size: 11px; opacity: 0.7; margin-bottom: 15px;">
+              Sistem, hedefe en yakın boştaki İHA'yı otomatik olarak sevk edecektir.
+            </p>
 
-            <label style="font-size: 11px; font-weight: bold; margin-bottom: 5px; display: block;">KALKIŞ
-              MERKEZİ</label>
-            <input v-model="departureAirportId" type="text" placeholder="Örn: LTBI" class="full-width-input"
-              list="airport-list" style="margin-bottom: 15px;">
-
-            <label style="font-size: 11px; font-weight: bold; margin-bottom: 5px; display: block;">VARILACAK
-              HEDEF</label>
-            <input v-model="destinationAirportId" type="text" placeholder="Örn: LTFO" class="full-width-input"
+            <input v-model="destinationAirportId" type="text" placeholder="Havalimanı Kodu Girin (Örn: LTBI)" class="full-width-input"
               list="airport-list">
 
             <datalist id="airport-list">
@@ -70,8 +65,8 @@
             </datalist>
 
             <button class="apply-target-btn" @click="assignMission"
-              style="margin-top: 20px; background: #2ecc71; width: 100%; border: none; font-weight: bold;">
-              UYGUN İHA'YI GÖREVE GÖNDER
+              style="margin-top: 20px; background: #e74c3c; color: white; width: 100%; border: none; font-weight: bold; padding: 12px; border-radius: 6px;">
+              HEDEFİ ONAYLA VE EN YAKIN BİRİMİ SEVK ET
             </button>
           </div>
         </div>
@@ -174,8 +169,8 @@
           </div>
 
           <div class="manual-target-input">
-            <h4>Manuel Hedef Belirleme</h4>
-            <input v-model="manualAirportId" type="text" placeholder="Havalimanı Seçin veya Yazın"
+            <h4>Operasyonu Güncelle</h4>
+            <input v-model="manualAirportId" type="text" placeholder="Yeni Hedef Belirle"
               class="full-width-input" list="airport-list-manual">
             <datalist id="airport-list-manual">
               <option value="MANUAL_COORD"> Manuel Koordinat Girişi</option>
@@ -197,6 +192,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import {
   Plane, Gauge, Mountain, MapPin, Navigation, AlertOctagon, AlertCircle, Play, RotateCcw,
@@ -696,38 +692,58 @@ onMounted(async () => {
 });
 
 const assignMission = () => {
-  const dep = departureAirportId.value.toUpperCase().trim();
   const arr = destinationAirportId.value.toUpperCase().trim();
-  const depAp = airports.value.find(ap => ap.id === dep);
   const arrAp = airports.value.find(ap => ap.id === arr);
 
-  if (!depAp || !arrAp) {
-    Swal.fire('Hata', 'Havalimanı kodları bulunamadı (Örn: LTBI, LTFO)', 'error');
+  if (!arrAp) {
+    Swal.fire('Hata', 'Hedef havalimanı bulunamadı!', 'error');
     return;
   }
-  const availableIcao = myFleetIcaos.find(icao => currentFlights.value[icao]?.status === 'STANDBY');
 
-  if (!availableIcao) {
+  const targetPos = { lat: arrAp.lat, lon: arrAp.lon };
+
+  // 1. Boştaki (STANDBY) İHA'ları filtrele
+  const availableIcaos = myFleetIcaos.filter(icao => currentFlights.value[icao]?.status === 'STANDBY');
+
+  if (availableIcaos.length === 0) {
     Swal.fire('Hangar Boş', 'Tüm İHA’lar şu an görevde!', 'info');
     return;
   }
-  const plane = currentFlights.value[availableIcao];
 
-  if (missionPathLayer.value) map.removeLayer(missionPathLayer.value); // Rota Çizgisi
-  missionPathLayer.value = L.polyline([], { color: '#f1c40f', weight: 3, dashArray: '5, 10' }).addTo(map);
+  // 2. Hedefe EN YAKIN olan boş İHA'yı bul
+  let closestIcao = availableIcaos[0];
+  let minDistance = Infinity;
 
-  plane.missionDep = { lat: depAp.lat, lon: depAp.lon };
-  plane.missionDest = { lat: arrAp.lat, lon: arrAp.lon };
+  availableIcaos.forEach(icao => {
+    const plane = currentFlights.value[icao];
+    const dist = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestIcao = icao;
+    }
+  });
 
-  const d1 = getDistance({ lat: plane.lat, lon: plane.lon }, plane.missionDep);
-  const d2 = getDistance(plane.missionDep, plane.missionDest);
-  plane.trip_distance = d1 + d2;
+  const plane = currentFlights.value[closestIcao];
+  
+  // 3. Görevi Başlat
+  plane.missionDest = targetPos;
+  plane.trip_distance = minDistance;
   plane.distance_from_dep = 0;
-  plane.status = 'GOING_TO_DEP';
-  activeIcao.value = availableIcao;
+  plane.status = 'GOING_TO_DEST'; // Direkt hedefe gidiş modu
+  
+  if (missionPathLayer.value) map.removeLayer(missionPathLayer.value);
+  missionPathLayer.value = L.polyline([], { color: '#e74c3c', weight: 4, dashArray: '5, 10' }).addTo(map);
+
+  activeIcao.value = closestIcao; 
   isPaused.value = false;
-  map.setView([plane.lat, plane.lon], 8);
-  Swal.fire('Görev Başladı', `${plane.callsign} hangardan çıkış yaptı.`, 'success');
+
+  map.setView([plane.lat, plane.lon], 7);
+  Swal.fire({
+    title: 'Operasyon Başladı',
+    text: `${plane.callsign} hedefe en yakın birim olarak seçildi ve havalandı!`,
+    icon: 'warning',
+    confirmButtonColor: '#e74c3c'
+  });
 };
 
 const failureTypes = {
