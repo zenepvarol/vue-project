@@ -234,7 +234,7 @@ const manualAirportId = ref(''); // havalimanı kodu ile arama icin
 const departureAirportId = ref('');
 const destinationAirportId = ref('');
 const missionPathLayer = ref(null);
-const myFleetIcaos = ["9005", "9501", "9802"];
+const myFleetIcaos = ["9005", "9501", "9802", "7001", "7002", "7003", "7004", "7005"];
 
 const getDistance = (p1, p2) => {
   const R = 6371; // dunyanin yaricapi - km
@@ -447,6 +447,24 @@ onMounted(async () => {
     noWrap: true
   }).addTo(map);
 
+  //Envanter uçakları kırmızı, diğerleri mor
+  const getPlaneIcon = (icao) => {
+    const isEnvanter = myFleetIcaos.includes(icao.toString());
+    const iconColor = isEnvanter ? '#e74c3c' : '#9381ff';
+    
+    return L.divIcon({
+      html: `
+      <div class="moving-plane">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="${iconColor}" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+        </svg>
+      </div>`,
+      className: 'plane-icon',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    });
+  };
+
   try {
     const airResponse = await fetch('/airports_library_v6.json');
     airports.value = await airResponse.json();
@@ -476,18 +494,6 @@ onMounted(async () => {
 
     flightPaths.value = grouped;
 
-    const planeIcon = L.divIcon({ // Uçak ikonu tasarımı (SVG)
-      html: `
-    <div class="moving-plane">
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#9381ff" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-      </svg>
-    </div>`,
-      className: 'plane-icon',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
-    });
-
     Object.keys(grouped).forEach(icao => {
       const firstPoint = grouped[icao][0]; // Her ucak başlangıç konumunda olusur
       const isEnvanter = myFleetIcaos.includes(icao.toString());
@@ -503,7 +509,7 @@ onMounted(async () => {
 
       if (firstPoint.lat && firstPoint.lon) {
         const marker = L.marker([firstPoint.lat, firstPoint.lon], {
-          icon: planeIcon,
+          icon: getPlaneIcon(icao),
           rotationAngle: (firstPoint.heading || 0) - 45
         }).addTo(map);
 
@@ -539,7 +545,7 @@ onMounted(async () => {
         triggerSimulatedFailure();
       }
 
-      // ENVANTER GÖREV MANTIĞI 9005 9501 9802 ŞİMDİLİK
+      // ENVANTER GÖREV MANTIĞI
       if (plane.status === 'GOING_TO_DEP' || plane.status === 'GOING_TO_DEST') {
         const targetPos = plane.status === 'GOING_TO_DEP' ? plane.missionDep : plane.missionDest;
         const distToTarget = getDistance(currentPos, targetPos);
@@ -547,6 +553,7 @@ onMounted(async () => {
         const oldPos = { lat: plane.lat, lon: plane.lon };
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
         plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
+        
         if (missionPathLayer.value) missionPathLayer.value.addLatLng([plane.lat, plane.lon]);
         map.panTo([plane.lat, plane.lon]);
 
@@ -646,17 +653,13 @@ onMounted(async () => {
           plane.velocity = 0;
           plane.baroaltitude = 0;
           plane.distance_from_dep = plane.trip_distance;
-
           isPaused.value = true;
           isManualRouting.value = false;
           manualTarget.value = null;
-          plane.total_manual_dist = 0;
-
           if (emergencyRoute.value) {
             map.removeLayer(emergencyRoute.value);
             emergencyRoute.value = null;
           }
-
           Swal.fire({ title: 'Hedefe Varıldı', icon: 'success', toast: true, position: 'top-end', timer: 3000 });
         }
       }
@@ -702,16 +705,18 @@ const assignMission = () => {
 
   const targetPos = { lat: arrAp.lat, lon: arrAp.lon };
 
-  // 1. Boştaki (STANDBY) İHA'ları filtrele
-  const availableIcaos = myFleetIcaos.filter(icao => currentFlights.value[icao]?.status === 'STANDBY');
+  // bostaki tüm envanter uçakları bulunur
+  const availableIcaos = myFleetIcaos.filter(icao => 
+    currentFlights.value[icao] && currentFlights.value[icao].status === 'STANDBY'
+  );
 
   if (availableIcaos.length === 0) {
-    Swal.fire('Hangar Boş', 'Tüm İHA’lar şu an görevde!', 'info');
+    Swal.fire('Hangar Boş', 'Şu an tüm üslerdeki İHA’lar görevde!', 'info');
     return;
   }
 
-  // 2. Hedefe EN YAKIN olan boş İHA'yı bul
-  let closestIcao = availableIcaos[0];
+  // hedefe en yakin üs /uçak tespiti
+  let closestIcao = null;
   let minDistance = Infinity;
 
   availableIcaos.forEach(icao => {
@@ -725,22 +730,28 @@ const assignMission = () => {
 
   const plane = currentFlights.value[closestIcao];
   
-  // 3. Görevi Başlat
   plane.missionDest = targetPos;
   plane.trip_distance = minDistance;
   plane.distance_from_dep = 0;
-  plane.status = 'GOING_TO_DEST'; // Direkt hedefe gidiş modu
+  plane.status = 'GOING_TO_DEST'; // Operasyon başladı
   
+  // Rota çizgisi - kırmızı
   if (missionPathLayer.value) map.removeLayer(missionPathLayer.value);
-  missionPathLayer.value = L.polyline([], { color: '#e74c3c', weight: 4, dashArray: '5, 10' }).addTo(map);
+  missionPathLayer.value = L.polyline([], { 
+    color: '#e74c3c', 
+    weight: 4, 
+    dashArray: '10, 5' 
+  }).addTo(map);
 
   activeIcao.value = closestIcao; 
   isPaused.value = false;
 
+  // Haritayı seçilen uçağa ve hedefe odakla
   map.setView([plane.lat, plane.lon], 7);
+  
   Swal.fire({
     title: 'Operasyon Başladı',
-    text: `${plane.callsign} hedefe en yakın birim olarak seçildi ve havalandı!`,
+    html: `<b>${plane.callsign}</b> en uygun birim olarak seçildi.<br>Mesafe: <b>${Math.round(minDistance)} km</b>`,
     icon: 'warning',
     confirmButtonColor: '#e74c3c'
   });
