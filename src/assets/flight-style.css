@@ -709,7 +709,8 @@ body {
 
 .fleet-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Yan yana ikişerli kartlar */
+  grid-template-columns: 1fr 1fr;
+  /* Yan yana ikişerli kartlar */
   gap: 10px;
 }
 
@@ -722,7 +723,8 @@ body {
   transition: all 0.3s ease;
 }
 
-.fleet-mini-card:hover, .fleet-mini-card.is-active {
+.fleet-mini-card:hover,
+.fleet-mini-card.is-active {
   background: rgba(147, 129, 255, 0.15);
   border-color: #9381ff;
 }
@@ -757,4 +759,71 @@ body {
 .mini-energy-fill {
   height: 100%;
   transition: width 0.3s ease;
+}
+/* Patlama Konteynırı */
+.explosion-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Patlama Çekirdeği */
+.explosion-core {
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 30px 15px #ff5e57, 0 0 60px 30px #ffcc00;
+  animation: core-blast 0.6s ease-out forwards;
+}
+
+/* Yayılan Halkalar */
+.explosion-ring {
+  position: absolute;
+  border: 3px solid #ffcc00;
+  border-radius: 50%;
+  opacity: 0;
+  animation: ring-expand 1s ease-out forwards;
+}
+
+.ring1 { animation-delay: 0.1s; }
+.ring2 { animation-delay: 0.3s; width: 40px; height: 40px; }
+.ring3 { animation-delay: 0.5s; width: 60px; height: 60px; }
+
+/* Kıvılcımlar (Sparks) */
+.explosion-spark {
+  position: absolute;
+  width: 4px;
+  height: 12px;
+  background: #ffcc00;
+  border-radius: 2px;
+  animation: spark-fly 0.8s ease-out forwards;
+}
+
+/* Kıvılcım Yönleri */
+.spark1 { transform: rotate(0deg) translateY(-40px); }
+.spark2 { transform: rotate(60deg) translateY(-40px); }
+.spark3 { transform: rotate(120deg) translateY(-40px); }
+.spark4 { transform: rotate(180deg) translateY(-40px); }
+.spark5 { transform: rotate(240deg) translateY(-40px); }
+.spark6 { transform: rotate(300deg) translateY(-40px); }
+
+/* Animasyon Keyframe'leri */
+@keyframes core-blast {
+  0% { transform: scale(0.1); opacity: 1; }
+  50% { transform: scale(3); opacity: 0.8; }
+  100% { transform: scale(5); opacity: 0; }
+}
+
+@keyframes ring-expand {
+  0% { transform: scale(0.5); opacity: 1; border-width: 5px; }
+  100% { transform: scale(4); opacity: 0; border-width: 1px; }
+}
+
+@keyframes spark-fly {
+  0% { opacity: 1; transform: rotate(var(--rot)) translateY(0); }
+  100% { opacity: 0; transform: rotate(var(--rot)) translateY(-100px) scale(0.5); }
 }

@@ -450,6 +450,15 @@
     "type": "Regional"
   },
   {
+    "id": "SZF",
+    "name": "Samsun Carsamba Airport",
+    "city": "Samsun",
+    "country": "Turkey",
+    "lat": 41.2597,
+    "lon": 36.5483,
+    "type": "Regional"
+  },
+  {
     "id": "HTY",
     "name": "Hatay Airport",
     "city": "Antakya",
