@@ -760,7 +760,7 @@ body {
   height: 100%;
   transition: width 0.3s ease;
 }
-/* Patlama Konteynırı */
+
 .explosion-container {
   position: relative;
   width: 120px;
@@ -770,7 +770,6 @@ body {
   justify-content: center;
 }
 
-/* Patlama Çekirdeği */
 .explosion-core {
   width: 20px;
   height: 20px;
@@ -789,9 +788,9 @@ body {
   animation: ring-expand 1s ease-out forwards;
 }
 
-.ring1 { animation-delay: 0.1s; }
-.ring2 { animation-delay: 0.3s; width: 40px; height: 40px; }
-.ring3 { animation-delay: 0.5s; width: 60px; height: 60px; }
+.ring1 { animation-delay: 0.1s;}
+.ring2 { animation-delay: 0.3s; width: 40px; height: 40px;}
+.ring3 { animation-delay: 0.5s; width: 60px; height: 60px;}
 
 /* Kıvılcımlar (Sparks) */
 .explosion-spark {
@@ -804,26 +803,52 @@ body {
 }
 
 /* Kıvılcım Yönleri */
-.spark1 { transform: rotate(0deg) translateY(-40px); }
-.spark2 { transform: rotate(60deg) translateY(-40px); }
-.spark3 { transform: rotate(120deg) translateY(-40px); }
-.spark4 { transform: rotate(180deg) translateY(-40px); }
-.spark5 { transform: rotate(240deg) translateY(-40px); }
-.spark6 { transform: rotate(300deg) translateY(-40px); }
+.spark1 { transform: rotate(0deg) translateY(-40px);}
+.spark2 { transform: rotate(60deg) translateY(-40px);}
+.spark3 { transform: rotate(120deg) translateY(-40px);}
+.spark4 { transform: rotate(180deg) translateY(-40px);}
+.spark5 { transform: rotate(240deg) translateY(-40px);}
+.spark6 { transform: rotate(300deg) translateY(-40px);}
 
 /* Animasyon Keyframe'leri */
 @keyframes core-blast {
-  0% { transform: scale(0.1); opacity: 1; }
-  50% { transform: scale(3); opacity: 0.8; }
-  100% { transform: scale(5); opacity: 0; }
+  0% { transform: scale(0.1); opacity: 1;}
+  50% { transform: scale(3); opacity: 0.8;}
+  100% { transform: scale(5); opacity: 0;}
 }
 
 @keyframes ring-expand {
-  0% { transform: scale(0.5); opacity: 1; border-width: 5px; }
-  100% { transform: scale(4); opacity: 0; border-width: 1px; }
+  0% { transform: scale(0.5); opacity: 1; border-width: 5px;}
+  100% { transform: scale(4); opacity: 0; border-width: 1px;}
 }
 
 @keyframes spark-fly {
-  0% { opacity: 1; transform: rotate(var(--rot)) translateY(0); }
-  100% { opacity: 0; transform: rotate(var(--rot)) translateY(-100px) scale(0.5); }
+  0% {opacity: 1; transform: rotate(var(--rot)) translateY(0);}
+  100% { opacity: 0; transform: rotate(var(--rot)) translateY(-100px) scale(0.5);}
+}
+
+.ammo-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.ammo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2ecc71;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(46, 204, 113, 0.4));
+}
+
+.ammo-icon.used {
+  color: #555;
+  filter: grayscale(1) opacity(0.5);
+  transform: scale(0.9);
+}
+
+.dark-mode-active .ammo-icon.used {
+  color: #444;
 }

@@ -119,6 +119,17 @@
               </div>
             </div>
 
+            <div class="detail-item full-width" v-if="myFleetIcaos.includes(String(activeIcao))">
+              <label>
+                <Crosshair :size="14" /> MÜHİMMAT DURUMU
+              </label>
+              <div class="ammo-container">
+                <div v-for="i in 2" :key="i" class="ammo-icon" :class="{ 'used': selectedFlight.ammo < i }">
+                  <Bomb :size="24" />
+                </div>
+              </div>
+            </div>
+
             <div class="details-row-inline">
               <div class="detail-item"><label>
                   <Gauge :size="14" /> Hız
@@ -149,7 +160,7 @@
 
           <div class="action-section">
             <button
-              v-if="animationSteps[activeIcao] > 0 && !isReturningToStart && !isEmergency && !isEmergencySimulated"
+              v-if="(animationSteps[activeIcao] > 0 || (myFleetIcaos.includes(String(activeIcao)) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
               class="returnhome-button" @click="returnToStart">
               <RotateCcw :size="16" /> ANA MERKEZE DÖN
             </button>
@@ -199,7 +210,7 @@
 <script setup>
 import {
   Plane, Gauge, Mountain, MapPin, Navigation, AlertOctagon, AlertCircle, Play, RotateCcw,
-  Sun, Moon, X, ChevronLeft, ChevronRight, Activity, Info, AlertTriangle
+  Sun, Moon, X, ChevronLeft, ChevronRight, Activity, Info, AlertTriangle, Bomb, Crosshair
 } from 'lucide-vue-next';
 
 import { onMounted, ref, computed } from 'vue';
@@ -312,10 +323,9 @@ const triggerExplosion = (lat, lon) => {
 
   const explosionMarker = L.marker([lat, lon], { icon: explosionIcon, zIndexOffset: 9999 }).addTo(map);
 
-  // 2.5 saniye sonra marker'ı kaldır
   setTimeout(() => {
     map.removeLayer(explosionMarker);
-  }, 2500);
+  }, 2500);   // 2.5 saniye sonra marker'ı kaldır
 };
 
 const resetActivePath = (icao) => {
@@ -338,10 +348,29 @@ const getNearestAirport = (planeLat, planeLon) => {
 const returnToStart = () => {
   if (!activeIcao.value) return; // aktif uçuş seçili değilse işlem sonlanır
   const icao = activeIcao.value;
+  const plane = currentFlights.value[icao];
+
+  if (plane && myFleetIcaos.includes(String(icao))) {
+    plane.status = 'RETURNING';
+  }
+
+  const path = flightPaths.value[icao];
+  if (path && path.length > 0) {
+    const targetPos = { lat: path[0].lat, lon: path[0].lon };
+    plane.trip_distance = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
+    plane.distance_from_dep = 0;
+  }
+
   resetActivePath(icao);
   isReturningToStart.value = true;
   isEmergency.value = false;
   isPaused.value = false;
+  isManualRouting.value = false;
+
+  if (missionPathLayer.value && map.hasLayer(missionPathLayer.value)) {
+    map.removeLayer(missionPathLayer.value);
+    missionPathLayer.value = null;
+  }
 
   if (emergencyRoute.value) {
     map.removeLayer(emergencyRoute.value);
@@ -541,6 +570,7 @@ onMounted(async () => {
         velocity: 0,
         baroaltitude: 0,
         energy: 100,
+        ammo: isEnvanter ? 2 : 0,
         status: isEnvanter ? 'STANDBY' : 'ON_MISSION'
       };
 
@@ -566,7 +596,7 @@ onMounted(async () => {
       }
     });
 
-setInterval(() => {
+    setInterval(() => {
       const icao = activeIcao.value;
       if (!icao || isPaused.value || !currentFlights.value[icao]) return;
 
@@ -574,14 +604,12 @@ setInterval(() => {
       const path = flightPaths.value[icao];
       const currentPos = { lat: plane.lat, lon: plane.lon };
 
-      // Enerji Tüketimi
       if (plane.energy > 0 && plane.velocity > 0) {
-        plane.energy = Math.max(0, plane.energy - 0.01);
+        plane.energy = Math.max(0, plane.energy - 0.01); // Enerji Tüketimi
       }
 
-      // Kritik Enerji Kontrolü
-      if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) {
-        triggerSimulatedFailure();
+      if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) { // Kritik Enerji Kontrolü
+        triggerSimulatedFailure(); 
       }
 
       // ENVANTER GÖREV MANTIĞI (Saldırı ve İntikal)
@@ -614,16 +642,13 @@ setInterval(() => {
             plane.status = 'GOING_TO_DEST';
             if (missionPathLayer.value) missionPathLayer.value.setStyle({ color: '#2ecc71', dashArray: null });
           } else {
-            // --- PATLAMA VE MÜHİMMAT SİSTEMİ ---
-            triggerExplosion(plane.lat, plane.lon); // CSS Patlamasını tetikle
-            if (plane.ammo > 0) plane.ammo--; // Mühimmatı düşür
+            triggerExplosion(plane.lat, plane.lon); // CSS patlaması 
+            if (plane.ammo > 0) plane.ammo--; // mühimmat azalır
 
             plane.velocity = 0; 
             plane.baroaltitude = 0;
             plane.distance_from_dep = plane.trip_distance;
             isPaused.value = true;
-
-            // Statüyü güncelle: Mühimmat bittiyse görev tamamlandı, bitmediyse beklemede
             plane.status = plane.ammo <= 0 ? 'MISSION_COMPLETE' : 'STANDBY';
 
             Swal.fire({
@@ -663,17 +688,24 @@ setInterval(() => {
       else if (isReturningToStart.value) {
         const targetPos = { lat: path[0].lat, lon: path[0].lon };
         const distToTarget = getDistance(currentPos, targetPos);
-        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, 5);
+        const stepSize = Math.max(0.1, plane.velocity / 1500);
+        const oldPos = { lat: plane.lat, lon: plane.lon };
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+        plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
 
-        if (!arrived && distToTarget > 0) {
-          const estimatedStepsLeft = distToTarget / 5;
-          if (estimatedStepsLeft > 1) {
-            plane.velocity -= (plane.velocity / estimatedStepsLeft);
-            plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
-          }
+        const cruiseAlt = 10000;
+        const cruiseSpeed = 220;
+
+        if (distToTarget > 20) {
+          if (plane.velocity < cruiseSpeed) plane.velocity += 0.8;
+          if (plane.baroaltitude < cruiseAlt) plane.baroaltitude += 15;
+        } else {
+          const ratio = Math.max(0.01, distToTarget / 20);
+          plane.velocity -= (plane.velocity - (cruiseSpeed * ratio)) * 0.05;
+          plane.baroaltitude -= (plane.baroaltitude - (cruiseAlt * ratio)) * 0.05;
         }
 
-        if (arrived) {
+        if (arrived || distToTarget < 0.1) {
           plane.velocity = 0; 
           plane.baroaltitude = 0;
           plane.status = 'STANDBY';
@@ -682,6 +714,7 @@ setInterval(() => {
           isReturningToStart.value = false; 
           isPaused.value = true;
           animationSteps.value[icao] = 0; 
+          plane.distance_from_dep = 0; 
           drawFullRoute(icao);
           Swal.fire({ title: 'Üsse Dönüldü', text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         }
@@ -712,7 +745,6 @@ setInterval(() => {
         if (arrived || remainingDist < 0.1) {
           triggerExplosion(plane.lat, plane.lon); // CSS Patlaması
           if (plane.ammo > 0) plane.ammo--;
-          
           plane.velocity = 0;
           plane.baroaltitude = 0;
           plane.distance_from_dep = plane.trip_distance;
@@ -770,9 +802,8 @@ const assignMission = () => {
 
   const targetPos = { lat: arrAp.lat, lon: arrAp.lon };
 
-  // bostaki tüm envanter uçakları bulunur
   const availableIcaos = myFleetIcaos.filter(icao =>
-    currentFlights.value[icao] && currentFlights.value[icao].status === 'STANDBY'
+    currentFlights.value[icao] && currentFlights.value[icao].status === 'STANDBY'   // bostaki tüm envanter uçakları bulunur
   );
 
   if (availableIcaos.length === 0) {
@@ -780,8 +811,7 @@ const assignMission = () => {
     return;
   }
 
-  // hedefe en yakin üs /uçak tespiti
-  let closestIcao = null;
+  let closestIcao = null; // hedefe en yakin üs /uçak tespiti
   let minDistance = Infinity;
 
   availableIcaos.forEach(icao => {
@@ -800,10 +830,9 @@ const assignMission = () => {
   plane.distance_from_dep = 0;
   plane.status = 'GOING_TO_DEST'; // Operasyon başladı
 
-  // Rota çizgisi - kırmızı
   if (missionPathLayer.value) map.removeLayer(missionPathLayer.value);
   missionPathLayer.value = L.polyline([], {
-    color: '#e74c3c',
+    color: '#e74c3c', // Rota çizgisi - kırmızı
     weight: 4,
     dashArray: '10, 5'
   }).addTo(map);
@@ -811,8 +840,7 @@ const assignMission = () => {
   activeIcao.value = closestIcao;
   isPaused.value = false;
 
-  // Haritayı seçilen uçağa ve hedefe odakla
-  map.setView([plane.lat, plane.lon], 7);
+  map.setView([plane.lat, plane.lon], 7); // Haritayı seçilen uçağa ve hedefe odakla
 
   Swal.fire({
     title: 'Operasyon Başladı',
@@ -881,9 +909,9 @@ const focusFlight = (f) => {
     if (activeIcao.value !== f.icao24) {
       activeIcao.value = f.icao24;
       isPaused.value = true;
-      drawFullRoute(f.icao24); // Seçilen uçağın tüm rotasını haritaya çiz.
+      drawFullRoute(f.icao24);
     }
-    zoomToPlane(f.lat, f.lon); // Haritayı uçağın güncel koordinatlarına kaydır.
+    zoomToPlane(f.lat, f.lon);
   }
 };
 </script>
