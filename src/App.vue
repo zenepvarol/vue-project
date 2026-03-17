@@ -1,45 +1,6 @@
 <template>
   <div class="app-container" :class="{ 'dark-mode-active': darkMode }">
-    <div class="sidebar left" :class="{ collapsed: !sidebarOpen }"
-      style="display: flex; flex-direction: column; max-height: 100vh;">
-      <div class="sidebar-header">
-        <div class="header-top">
-          <h3>Uçuş Listesi</h3>
-          <button class="dark-toggle" @click="toggleDarkMode" :title="darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
-            <Sun v-if="darkMode" :size="20" color="#f1c40f" />
-            <Moon v-else :size="20" />
-          </button>
-        </div>
-        <div class="search-container">
-          <input v-model="searchQuery" placeholder="Uçuş (Callsign) ara: " class="search-input" />
-        </div>
-      </div>
-
-      <div class="fleet-status-section"
-        style="padding: 10px; border-top: none; flex: 1; overflow-y: auto; scrollbar-width: thin;">
-        <div class="fleet-grid">
-          <div v-for="f in filteredFlights" :key="f.icao24" class="fleet-mini-card"
-            :class="{ 'is-active': activeIcao === f.icao24 }" @click="focusFlight(f)">
-            <div class="mini-card-header">
-              <span class="mini-callsign">{{ f.callsign || 'İHA' }}</span>
-              <span class="mini-status-dot" :style="{ backgroundColor: f.energy < 20 ? '#e74c3c' : '#2ecc71' }"></span>
-            </div>
-            <div class="mini-stats">
-              <span>
-                <Gauge :size="12" /> {{ Math.round(f.velocity) }} kt
-              </span>
-              <span>
-                <Mountain :size="12" /> {{ Math.round(f.baroaltitude) }} ft
-              </span>
-            </div>
-            <div class="mini-energy-bar">
-              <div class="mini-energy-fill"
-                :style="{ width: f.energy + '%', backgroundColor: f.energy < 20 ? '#e74c3c' : '#2ecc71' }"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <LeftPanel @focus-flight="focusFlight" />
 
     <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
       <ChevronLeft v-if="sidebarOpen" />
@@ -214,6 +175,9 @@ import {
 } from 'lucide-vue-next';
 
 import { onMounted, ref, computed } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useFlightStore } from '@/stores/flightStore';
+import LeftPanel from '@/components/LeftPanel.vue';
 import './assets/flight-style.css';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -222,15 +186,13 @@ import 'leaflet.marker.slideto'; // akıcı geçiş (animation)
 import Swal from 'sweetalert2';
 
 //  REAKTİF DEĞİŞKENLER 
-const searchQuery = ref('');
-const currentFlights = ref({});
+const store = useFlightStore();
+const { searchQuery, currentFlights, activeIcao, darkMode, sidebarOpen } = storeToRefs(store);
+
 const markers = {};
 const flightPaths = ref({});
 const animationSteps = ref({});
-const activeIcao = ref(null);
-const darkMode = ref(false);
 const isPaused = ref(true);
-const sidebarOpen = ref(true);
 const airports = ref([]);
 const isEmergency = ref(false);
 const emergencyRoute = ref(null);
@@ -390,8 +352,8 @@ const recenterMap = () => {
   }
 };
 
-const toggleDarkMode = () => { darkMode.value = !darkMode.value; };
-const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value; };
+const toggleDarkMode = () => store.toggleDarkMode();
+const toggleSidebar = () => store.toggleSidebar();
 
 const togglePause = () => {
   if (!activeIcao.value) return;
@@ -494,13 +456,6 @@ const nearestAirport = computed(() => {
     return getNearestAirport(selectedFlight.value.lat, selectedFlight.value.lon);
   }
   return null;
-});
-
-const filteredFlights = computed(() => {
-  const query = searchQuery.value.toLowerCase();
-  return Object.values(currentFlights.value).filter(f =>
-    f.callsign?.toString().toLowerCase().includes(query)
-  );
 });
 
 const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
