@@ -485,11 +485,15 @@ onMounted(async () => {
             if (plane.ammo > 0) plane.ammo--;
             plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
             isPaused.value = true;
-            plane.status = plane.ammo <= 0 ? 'MISSION_COMPLETE' : 'STANDBY';
+            plane.status = 'MISSION_COMPLETE';
             Swal.fire({
-              title: 'HEDEF İMHA EDİLDİ', html: `Birim: <b>${plane.callsign}</b><br>Kalan Mühimmat: <b>${plane.ammo}</b>`,
+              title: 'HEDEF İMHA EDİLDİ', html: `Birim: <b>${plane.callsign}</b><br>Görev Tamamlandı, Üsse Dönülüyor!`,
               icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
             });
+            setTimeout(() => {
+              if (activeIcao.value !== icao) activeIcao.value = icao;
+              returnToStart();
+            }, 2000);
           }
         }
       } else if (isEmergency.value && nearestAirport.value) {
@@ -556,12 +560,16 @@ onMounted(async () => {
           if (plane.ammo > 0) plane.ammo--;
           plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
-          plane.status = plane.ammo <= 0 ? 'MISSION_COMPLETE' : 'STANDBY';
+          plane.status = 'MISSION_COMPLETE';
           if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
           Swal.fire({
-            title: 'HEDEF İMHA EDİLDİ', html: `Kalan Mühimmat: <b>${plane.ammo}</b>`,
+            title: 'HEDEF İMHA EDİLDİ', html: `Birim: <b>${plane.callsign}</b><br>Görev Tamamlandı, Üsse Dönülüyor!`,
             icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
           });
+          setTimeout(() => {
+            if (activeIcao.value !== icao) activeIcao.value = icao;
+            returnToStart();
+          }, 2000);
         }
       } else if (path && path.length > 0) {
         const step = animationSteps.value[icao] || 0;
