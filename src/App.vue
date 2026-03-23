@@ -68,7 +68,6 @@ const store = useFlightStore();
 const { searchQuery, currentFlights, activeIcao, darkMode, sidebarOpen } = storeToRefs(store);
 
 const mapRef = ref(null);
-
 const animationSteps = ref({});
 const isPaused = ref(true);
 const airports = ref([]);
