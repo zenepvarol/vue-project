@@ -390,9 +390,10 @@ onMounted(async () => {
 
   try {
     const airResponse = await fetch('/airports_library_v6.json');
-    airports.value = await airResponse.json();
+    const airData = await airResponse.json();
+    airports.value = airData;
 
-    airports.value.forEach(ap => {
+    airData.forEach(ap => {
       const airportIcon = L.divIcon({
         html: `
         <div class="airport-marker">
