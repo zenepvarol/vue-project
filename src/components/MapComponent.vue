@@ -31,15 +31,15 @@ const manualAirportId = defineModel('manualAirportId');
 const destinationAirportId = defineModel('destinationAirportId');
 const activeFailure = defineModel('activeFailure');
 
-const markers = {};
-const flightPaths = ref({});
-const emergencyRoute = ref(null);
-const activeRoutes = {};
-let map = null;
-const routeLayer = L.layerGroup();
-const manualTarget = ref(null);
-const isManualRouting = ref(false);
-const missionPathLayer = ref(null);
+const markers = {}; // Harita üzerindeki marker objelerini (uçak ikonlarını) tutar
+const flightPaths = ref({}); // Uçuşların tüm rota noktalarını tutar
+const emergencyRoute = ref(null); // Acil durum iniş rotası katmanı
+const activeRoutes = {}; // Uçuşların haritada çizilmiş yol rotalarını tutar
+let map = null; // Leaflet harita nesnesi referansı
+const routeLayer = L.layerGroup(); // Rotaların eklendiği harita katmanı grubu
+const manualTarget = ref(null); // Manuel hedefin (koordinat veya havalimanı) bilgilerini tutar
+const isManualRouting = ref(false); // Manuel olarak hedefe yönlendirme durumunu belirtir
+const missionPathLayer = ref(null); // Aktif görev gidiş-dönüş rotası katmanı
 
 const failureTypes = {
   LOW_BATTERY: {
@@ -54,6 +54,7 @@ const failureTypes = {
   }
 };
 
+// Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   const plane = currentFlights.value[icao];
   const marker = markers[icao];
@@ -82,6 +83,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   return false;
 };
 
+// Hedefe ulaşıldığında haritada kısa süreli bir patlama/imha efekti çıkartır
 const triggerExplosion = (lat, lon) => {
   const explosionIcon = L.divIcon({
     html: `<div class="explosion-container">
@@ -113,6 +115,7 @@ const resetActivePath = (icao) => {
   }
 };
 
+// Uçağın o anki konumuna en yakın müttefik havalimanını (üs noktasını) bulur
 const getNearestAirport = (planeLat, planeLon) => {
   if (!airports.value.length) return null;
   const planePos = { lat: planeLat, lon: planeLon };
@@ -128,6 +131,7 @@ const nearestAirport = computed(() => {
   return null;
 });
 
+// Görevi iptal ederek aktif uçağın başlangıç koordinatlarına (üssüne) dönmesini tetikler
 const returnToStart = () => {
   if (!activeIcao.value) return;
   const icao = activeIcao.value;
@@ -237,6 +241,7 @@ const setManualTarget = () => {
   }
 };
 
+// En yakın havalimanına hesaplanan acil iniş rotasını çizer ve acil durumu başlatır
 const startEmergencyLanding = () => {
   if (props.selectedFlight && nearestAirport.value) {
     const icao = activeIcao.value;
@@ -255,6 +260,7 @@ const startEmergencyLanding = () => {
   }
 };
 
+// Batarya seviyesine veya duruma göre manuel/suni arıza ve gerisayım (10sn) durumu başlatır
 const triggerSimulatedFailure = () => {
   if (isEmergencySimulated.value || !props.selectedFlight) return;
   const plane = props.selectedFlight;
@@ -296,6 +302,7 @@ const focusFlight = (f) => {
   }
 };
 
+// Kullanıcının seçtiği hedef rotasına hangarda bekleyen en yakın İHA'yı gönderir
 const assignMission = () => {
   const arr = destinationAirportId.value.toUpperCase().trim();
   const arrAp = airports.value.find(ap => ap.id === arr);
@@ -348,7 +355,9 @@ const assignMission = () => {
   });
 };
 
+// Bileşen ayağa kalktığında Leaflet haritasını oluşturur ve JSON verilerini yükler
 onMounted(async () => {
+  // Dünya sınırlarını sabitleyip temel haritayı çizer
   const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
   map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
   routeLayer.addTo(map);
@@ -420,6 +429,7 @@ onMounted(async () => {
       }
     });
 
+    // Simülasyon döngüsü: Uçakların hareketini, hızlanmasını ve görev kontrollerini periyodik denetler
     setInterval(() => {
       const icao = activeIcao.value;
       if (!icao || isPaused.value || !currentFlights.value[icao]) return;
@@ -430,7 +440,8 @@ onMounted(async () => {
 
       if (plane.energy > 0 && plane.velocity > 0) plane.energy = Math.max(0, plane.energy - 0.01);
       if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) triggerSimulatedFailure();
-
+      
+      // 1. Durum: Hedef havalimanına veya görev sahasına gidiş işlemi
       if (plane.status === 'GOING_TO_DEP' || plane.status === 'GOING_TO_DEST') {
         const targetPos = plane.status === 'GOING_TO_DEP' ? plane.missionDep : plane.missionDest;
         const distToTarget = getDistance(currentPos, targetPos);
@@ -472,6 +483,7 @@ onMounted(async () => {
             }, 2000);
           }
         }
+      // 2. Durum: Acil durum aktif (En yakın havalimanına acil iniş)
       } else if (isEmergency.value && nearestAirport.value) {
         const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
         const dist = getDistance(currentPos, targetPos);
@@ -487,6 +499,7 @@ onMounted(async () => {
           plane.velocity = 0; plane.baroaltitude = 0; isPaused.value = true; isEmergency.value = false;
           if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
         }
+      // 3. Durum: Görev bitti (imha) / iptal edildi, ana üsse (başlangıç koordinatlarına) geri dönüş
       } else if (isReturningToStart.value) {
         const targetPos = { lat: path[0].lat, lon: path[0].lon };
         const distToTarget = getDistance(currentPos, targetPos);
@@ -511,6 +524,7 @@ onMounted(async () => {
           drawFullRoute(icao);
           Swal.fire({ title: 'Üsse Dönüldü', text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         }
+      // 4. Durum: Haritada manuel olarak tanımlanan özel bir rotaya/koordinata uçuş
       } else if (isManualRouting.value && manualTarget.value) {
         const targetPos = { lat: manualTarget.value.lat, lon: manualTarget.value.lon };
         const remainingDist = getDistance(currentPos, targetPos);
@@ -547,6 +561,7 @@ onMounted(async () => {
             returnToStart();
           }, 2000);
         }
+      // 5. Durum: Tanımlanmış rota noktaları olan standart JSON uçuş rotasında ilerleme
       } else if (path && path.length > 0) {
         const step = animationSteps.value[icao] || 0;
         if (step + 1 >= path.length) { plane.velocity = 0; plane.baroaltitude = 0; return; }

@@ -34,9 +34,18 @@
 </template>
 
 <script setup>
+/**
+ * RightPanel.vue - Sağ Kontrol Paneli Ana Bileşeni
+ * Bu bileşen, seçili uçuş durumuna göre Hedef Belirleme (TargetSelection) 
+ * ve Uçuş Detayları (FlightDetails) arasında dinamik geçiş yapar.
+ */
 import TargetSelection from './RightPanel/TargetSelection.vue';
 import FlightDetails from './RightPanel/FlightDetails.vue';
 
+/**
+ * PROPS: Üst bileşenden (App.vue) gelen statik ve dinamik veriler.
+ * Bu veriler sadece okuma amaçlıdır (One-way data binding).
+ */
 defineProps({
   selectedFlight: Object,
   airports: Array,
@@ -50,12 +59,19 @@ defineProps({
   emergencyCountdown: Number
 });
 
+/**
+ * MODELS: Çift yönlü veri bağlama (Two-way binding).
+ * Bu değişkenler değiştiğinde App.vue üzerindeki ana veriler de güncellenir.
+ */
 const activeIcao = defineModel('activeIcao');
 const destinationAirportId = defineModel('destinationAirportId', { type: String });
 const manualAirportId = defineModel('manualAirportId', { type: String });
 const manualLat = defineModel('manualLat');
 const manualLon = defineModel('manualLon');
 
+/**
+ * EMITS: Alt bileşenlerden gelen olayları (events) App.vue'ya iletir. Bu sayede harita üzerindeki fonksiyonlar sağ panelden tetiklenebilir.
+ */
 defineEmits([
   'assign-mission',
   'recenter-map',
