@@ -9,13 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdi/font": "^7.4.47",
     "@tsparticles/slim": "^3.9.1",
     "@tsparticles/vue3": "^3.0.1",
     "axios": "^1.13.5",
     "leaflet": "^1.9.4",
     "leaflet-rotatedmarker": "^0.2.0",
     "leaflet.marker.slideto": "^0.3.0",
-    "lucide-vue-next": "^0.576.0",
     "pinia": "^3.0.4",
     "sweetalert2": "^11.26.22",
     "tsparticles": "^3.9.1",

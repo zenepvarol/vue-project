@@ -4,7 +4,7 @@
       <div class="header-top">
         <h3>Uçuş Detayları</h3>
         <button class="close-button" @click="activeIcao = null" title="Kapat">
-          <X :size="20" />
+          <i class="mdi mdi-close" style="font-size: 20px;"></i>
         </button>
       </div>
     </div>
@@ -16,7 +16,7 @@
           <span class="model-subtitle">{{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}</span>
         </div>
         <button class="locate-mini-button" @click="$emit('recenter-map')" title="Uçağa Odaklan">
-          <Navigation :size="18" />
+          <i class="mdi mdi-navigation" style="font-size: 18px;"></i>
         </button>
       </div>
 
@@ -24,7 +24,7 @@
         :class="{ 'link-loss-blur': activeFailure?.label.includes('SİNYAL') && isEmergencySimulated }">
         <div class="detail-item full-width">
           <label>
-            <Activity :size="14" /> Durum
+            <i class="mdi mdi-pulse" style="font-size: 14px;"></i> Durum
           </label>
           <span
             :style="{ color: isEmergency ? '#e74c3c' : (isReturningToStart ? '#3498db' : (isPaused ? '#f39c12' : '#2ecc71')), fontWeight: 'bold' }">
@@ -34,7 +34,7 @@
 
         <div class="detail-item full-width">
           <label>
-            <Battery :size="14" /> YAKIT (%{{ Math.round(selectedFlight.energy) }})
+            <i class="mdi mdi-battery" style="font-size: 14px;"></i> YAKIT (%{{ Math.round(selectedFlight.energy) }})
           </label>
           <div class="progress-bar energy-bar">
             <div class="progress-fill"
@@ -45,27 +45,27 @@
 
         <div class="detail-item full-width" v-if="myFleetIcaos.includes(String(activeIcao))">
           <label>
-            <Crosshair :size="14" /> MÜHİMMAT DURUMU
+            <i class="mdi mdi-crosshairs-gps" style="font-size: 14px;"></i> MÜHİMMAT DURUMU
           </label>
           <div class="ammo-container">
             <div v-for="i in 2" :key="i" class="ammo-icon" :class="{ 'used': selectedFlight.ammo < i }">
-              <Bomb :size="24" />
+              <i class="mdi mdi-bomb" style="font-size: 24px;"></i>
             </div>
           </div>
         </div>
 
         <div class="details-row-inline">
           <div class="detail-item"><label>
-              <Gauge :size="14" /> Hız
+              <i class="mdi mdi-gauge" style="font-size: 14px;"></i> Hız
             </label><span>{{ Math.round(selectedFlight.velocity) }} kt</span></div>
           <div class="detail-item"><label>
-              <Mountain :size="14" /> Rakım
+              <i class="mdi mdi-image-filter-hdr" style="font-size: 14px;"></i> Rakım
             </label><span>{{ Math.round(selectedFlight.baroaltitude) }} ft</span></div>
         </div>
 
         <div class="detail-item">
           <label>
-            <MapPin :size="14" /> Mesafe (Gidilen / Toplam)
+            <i class="mdi mdi-map-marker" style="font-size: 14px;"></i> Mesafe (Gidilen / Toplam)
           </label>
           <span>{{ Math.round(selectedFlight.distance_from_dep) }} / {{ Math.round(selectedFlight.trip_distance) }}
             km</span>
@@ -86,20 +86,20 @@
         <button
           v-if="(animationSteps[activeIcao] > 0 || (myFleetIcaos.includes(String(activeIcao)) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
           class="returnhome-button" @click="$emit('return-to-start')">
-          <RotateCcw :size="16" /> ANA MERKEZE DÖN
+          <i class="mdi mdi-restore" style="font-size: 16px;"></i> ANA MERKEZE DÖN
         </button>
         <button v-if="isPaused && animationSteps[activeIcao] === 0" class="pause-button paused"
           @click="$emit('toggle-pause')">
-          <Play :size="16" /> KALKIŞ ONAYI VER
+          <i class="mdi mdi-play" style="font-size: 16px;"></i> KALKIŞ ONAYI VER
         </button>
         <button v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart"
           class="simulate-btn" @click="$emit('trigger-simulated-failure')">
-          <AlertTriangle :size="16" /> ARIZA SİMÜLE ET
+          <i class="mdi mdi-alert" style="font-size: 16px;"></i> ARIZA SİMÜLE ET
         </button>
 
         <div v-if="isEmergencySimulated" class="emergency-decision-box">
           <div class="emergency-warning-text" :style="{ color: activeFailure?.color || '#e74c3c' }">
-            <AlertOctagon :size="18" class="pulse-icon" />
+            <i class="mdi mdi-alert-octagon pulse-icon" style="font-size: 18px;"></i>
             {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
           </div>
           <button class="emergency-button" @click="$emit('handle-manual-emergency')">ACİL İNİŞ YAP</button>
@@ -130,10 +130,7 @@
 </template>
 
 <script setup>
-import {
-  Gauge, Mountain, MapPin, Navigation, AlertOctagon, Play, RotateCcw,
-  X, Activity, AlertTriangle, Bomb, Crosshair, Battery
-} from 'lucide-vue-next';
+
 
 defineProps({
   selectedFlight: Object,

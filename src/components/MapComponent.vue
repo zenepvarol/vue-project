@@ -380,9 +380,7 @@ onMounted(async () => {
     return L.divIcon({
       html: `
       <div class="moving-plane">
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="${iconColor}" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-        </svg>
+        <i class="mdi mdi-airplane" style="font-size: 36px; color: ${iconColor}; -webkit-text-stroke: 1px #ffffff; filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4)); transition: transform 0.1s linear;"></i>
       </div>`,
       className: 'plane-icon', iconSize: [40, 40], iconAnchor: [20, 20]
     });
@@ -397,9 +395,7 @@ onMounted(async () => {
       const airportIcon = L.divIcon({
         html: `
         <div class="airport-marker">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2ecc71" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
-          </svg>
+          <i class="mdi mdi-map-marker" style="font-size: 24px; color: #2ecc71; -webkit-text-stroke: 1px #ffffff; filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.5));"></i>
           <span class="airport-label">${ap.id}</span>
         </div>`,
         className: 'custom-airport', iconSize: [40, 40]
@@ -431,9 +427,6 @@ onMounted(async () => {
 
         marker.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
-          // Instead of sidebarOpen.value = true directly, we let App.vue handle it, BUT MapComponent doesn't have sidebarOpen ref! We can emit or manage it. 
-          // Wait! Let's emit it so App.vue handles it! Wait, we'll just update activeIcao and the map handles the rest.
-          // App.vue watch(activeIcao) can open sidebar.
           if (activeIcao.value !== icao) {
             activeIcao.value = icao;
             isPaused.value = true;

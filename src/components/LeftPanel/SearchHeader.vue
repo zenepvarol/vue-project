@@ -3,8 +3,8 @@
     <div class="header-top">
       <h3>Uçuş Listesi</h3>
       <button class="dark-toggle" @click="store.toggleDarkMode" :title="store.darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'">
-        <Sun v-if="store.darkMode" :size="20" color="#f1c40f" />
-        <Moon v-else :size="20" />
+        <i v-if="store.darkMode" class="mdi mdi-weather-sunny" style="font-size: 20px; color: #f1c40f;"></i>
+        <i v-else class="mdi mdi-moon-waxing-crescent" style="font-size: 20px;"></i>
       </button>
     </div>
     <div class="search-container">
@@ -14,7 +14,7 @@
 </template>
 
 <script setup>
-import { Sun, Moon } from 'lucide-vue-next';
+
 import { useFlightStore } from '@/stores/flightStore';
 
 const store = useFlightStore();

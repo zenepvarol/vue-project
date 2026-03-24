@@ -10,10 +10,10 @@
         </div>
         <div class="mini-stats">
           <span>
-            <Gauge :size="12" /> {{ Math.round(f.velocity) }} kt
+            <i class="mdi mdi-gauge" style="font-size: 12px;"></i> {{ Math.round(f.velocity) }} kt
           </span>
           <span>
-            <Mountain :size="12" /> {{ Math.round(f.baroaltitude) }} ft
+            <i class="mdi mdi-image-filter-hdr" style="font-size: 12px;"></i> {{ Math.round(f.baroaltitude) }} ft
           </span>
         </div>
         <div class="mini-energy-bar">
@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import { Gauge, Mountain } from 'lucide-vue-next';
+
 import { useFlightStore } from '@/stores/flightStore';
 
 const store = useFlightStore();

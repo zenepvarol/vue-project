@@ -8,6 +8,7 @@ import router from './router'
 
 import Particles from "@tsparticles/vue3";
 import { loadFull } from "tsparticles";
+import '@mdi/font/css/materialdesignicons.css';
 
 const app = createApp(App)
 

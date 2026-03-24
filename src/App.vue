@@ -3,8 +3,8 @@
     <LeftPanel @focus-flight="(f) => mapRef?.focusFlight(f)" />
 
     <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
-      <ChevronLeft v-if="sidebarOpen" />
-      <ChevronRight v-else />
+      <i v-if="sidebarOpen" class="mdi mdi-chevron-left" style="font-size: 20px;"></i>
+      <i v-else class="mdi mdi-chevron-right" style="font-size: 20px;"></i>
     </button>
 
     <MapComponent
@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
+
 import { ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useFlightStore } from '@/stores/flightStore';
