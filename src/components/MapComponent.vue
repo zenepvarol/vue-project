@@ -10,6 +10,7 @@ import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
 import Swal from 'sweetalert2';
 import { getDistance, calculateNextPosition } from '../utils/physics';
+import { triggerExplosion, getPlaneIcon, getAirportIcon } from '../utils/mapVisuals';
 
 const props = defineProps({
   myFleetIcaos: Array,
@@ -81,30 +82,6 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   marker.setRotationAngle(heading - 45);
   if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
   return false;
-};
-
-// Hedefe ulaşıldığında haritada kısa süreli bir patlama/imha efekti çıkartır
-const triggerExplosion = (lat, lon) => {
-  const explosionIcon = L.divIcon({
-    html: `<div class="explosion-container">
-      <div class="explosion-core"></div>
-      <div class="explosion-ring ring1"></div>
-      <div class="explosion-ring ring2"></div>
-      <div class="explosion-ring ring3"></div>
-      <div class="explosion-spark spark1"></div>
-      <div class="explosion-spark spark2"></div>
-      <div class="explosion-spark spark3"></div>
-      <div class="explosion-spark spark4"></div>
-      <div class="explosion-spark spark5"></div>
-      <div class="explosion-spark spark6"></div>
-    </div>`,
-    className: '',
-    iconSize: [120, 120],
-    iconAnchor: [60, 60]
-  });
-
-  const explosionMarker = L.marker([lat, lon], { icon: explosionIcon, zIndexOffset: 9999 }).addTo(map);
-  setTimeout(() => map.removeLayer(explosionMarker), 2500);
 };
 
 const resetActivePath = (icao) => {
@@ -365,32 +342,13 @@ onMounted(async () => {
     attribution: '© OpenStreetMap', noWrap: true
   }).addTo(map);
 
-  const getPlaneIcon = (icao) => {
-    const isEnvanter = props.myFleetIcaos.includes(icao.toString());
-    const iconColor = isEnvanter ? '#e74c3c' : '#9381ff';
-    return L.divIcon({
-      html: `
-      <div class="moving-plane">
-        <i class="mdi mdi-airplane" style="font-size: 36px; color: ${iconColor}; -webkit-text-stroke: 1px #ffffff; filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4)); transition: transform 0.1s linear;"></i>
-      </div>`,
-      className: 'plane-icon', iconSize: [40, 40], iconAnchor: [20, 20]
-    });
-  };
-
   try {
     const airResponse = await fetch('/airports_library_v6.json');
     const airData = await airResponse.json();
     airports.value = airData;
 
     airData.forEach(ap => {
-      const airportIcon = L.divIcon({
-        html: `
-        <div class="airport-marker">
-          <i class="mdi mdi-map-marker" style="font-size: 24px; color: #2ecc71; -webkit-text-stroke: 1px #ffffff; filter: drop-shadow(0 0 5px rgba(46, 204, 113, 0.5));"></i>
-          <span class="airport-label">${ap.id}</span>
-        </div>`,
-        className: 'custom-airport', iconSize: [40, 40]
-      });
+      const airportIcon = getAirportIcon(ap.id);
       L.marker([ap.lat, ap.lon], { icon: airportIcon }).addTo(map).bindPopup(`<b>${ap.name}</b><br>Acil İniş Noktası`);
     });
 
@@ -413,7 +371,7 @@ onMounted(async () => {
 
       if (firstPoint.lat && firstPoint.lon) {
         const marker = L.marker([firstPoint.lat, firstPoint.lon], {
-          icon: getPlaneIcon(icao), rotationAngle: (firstPoint.heading || 0) - 45
+          icon: getPlaneIcon(isEnvanter), rotationAngle: (firstPoint.heading || 0) - 45
         }).addTo(map);
 
         marker.on('click', (e) => {
@@ -468,7 +426,7 @@ onMounted(async () => {
             plane.status = 'GOING_TO_DEST';
             if (missionPathLayer.value) missionPathLayer.value.setStyle({ color: '#2ecc71', dashArray: null });
           } else {
-            triggerExplosion(plane.lat, plane.lon);
+            triggerExplosion(plane.lat, plane.lon, map);
             if (plane.ammo > 0) plane.ammo--;
             plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
             isPaused.value = true;
@@ -546,20 +504,13 @@ onMounted(async () => {
         }
 
         if (arrived || remainingDist < 0.1) {
-          triggerExplosion(plane.lat, plane.lon);
-          if (plane.ammo > 0) plane.ammo--;
           plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
-          plane.status = 'MISSION_COMPLETE';
           if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
           Swal.fire({
-            title: 'HEDEF İMHA EDİLDİ', html: `Birim: <b>${plane.callsign}</b><br>Görev Tamamlandı, Üsse Dönülüyor!`,
-            icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
+            title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota Tamamlandı.`,
+            icon: 'info', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
           });
-          setTimeout(() => {
-            if (activeIcao.value !== icao) activeIcao.value = icao;
-            returnToStart();
-          }, 2000);
         }
       // 5. Durum: Tanımlanmış rota noktaları olan standart JSON uçuş rotasında ilerleme
       } else if (path && path.length > 0) {
