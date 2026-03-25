@@ -84,6 +84,26 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   return false;
 };
 
+const updatePlanePhysics = (plane, icao, currentPos, targetPos, cruiseSpeed = 220, cruiseAlt = 10000) => {
+  const distToTarget = getDistance(currentPos, targetPos);
+  const stepSize = Math.max(0.1, plane.velocity / 1500);
+  const oldPos = { lat: plane.lat, lon: plane.lon };
+  
+  const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+  plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
+
+  if (distToTarget > 20) {
+    if (plane.velocity < cruiseSpeed) plane.velocity += 0.8;
+    if (plane.baroaltitude < cruiseAlt) plane.baroaltitude += 15;
+  } else {
+    const ratio = Math.max(0.01, distToTarget / 20);
+    plane.velocity -= (plane.velocity - (cruiseSpeed * ratio)) * 0.05;
+    plane.baroaltitude -= (plane.baroaltitude - (cruiseAlt * ratio)) * 0.05;
+  }
+
+  return { arrived, distToTarget };
+};
+
 const resetActivePath = (icao) => {
   if (activeRoutes[icao]) {
     routeLayer.removeLayer(activeRoutes[icao]);
@@ -402,24 +422,10 @@ onMounted(async () => {
       // 1. Durum: Hedef havalimanına veya görev sahasına gidiş işlemi
       if (plane.status === 'GOING_TO_DEP' || plane.status === 'GOING_TO_DEST') {
         const targetPos = plane.status === 'GOING_TO_DEP' ? plane.missionDep : plane.missionDest;
-        const distToTarget = getDistance(currentPos, targetPos);
-        const stepSize = Math.max(0.1, plane.velocity / 1500);
-        const oldPos = { lat: plane.lat, lon: plane.lon };
-        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
-        plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
+        const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos);
 
         if (missionPathLayer.value) missionPathLayer.value.addLatLng([plane.lat, plane.lon]);
         map.panTo([plane.lat, plane.lon]);
-
-        const cruiseAlt = 10000; const cruiseSpeed = 220;
-        if (distToTarget > 20) {
-          if (plane.velocity < cruiseSpeed) plane.velocity += 0.8;
-          if (plane.baroaltitude < cruiseAlt) plane.baroaltitude += 15;
-        } else {
-          const ratio = Math.max(0.01, distToTarget / 20);
-          plane.velocity -= (plane.velocity - (cruiseSpeed * ratio)) * 0.05;
-          plane.baroaltitude -= (plane.baroaltitude - (cruiseAlt * ratio)) * 0.05;
-        }
 
         if (arrived || distToTarget < 0.1) {
           if (plane.status === 'GOING_TO_DEP') {
@@ -460,21 +466,7 @@ onMounted(async () => {
       // 3. Durum: Görev bitti (imha) / iptal edildi, ana üsse (başlangıç koordinatlarına) geri dönüş
       } else if (isReturningToStart.value) {
         const targetPos = { lat: path[0].lat, lon: path[0].lon };
-        const distToTarget = getDistance(currentPos, targetPos);
-        const stepSize = Math.max(0.1, plane.velocity / 1500);
-        const oldPos = { lat: plane.lat, lon: plane.lon };
-        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
-        plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
-
-        const cruiseAlt = 10000; const cruiseSpeed = 220;
-        if (distToTarget > 20) {
-          if (plane.velocity < cruiseSpeed) plane.velocity += 0.8;
-          if (plane.baroaltitude < cruiseAlt) plane.baroaltitude += 15;
-        } else {
-          const ratio = Math.max(0.01, distToTarget / 20);
-          plane.velocity -= (plane.velocity - (cruiseSpeed * ratio)) * 0.05;
-          plane.baroaltitude -= (plane.baroaltitude - (cruiseAlt * ratio)) * 0.05;
-        }
+        const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos);
 
         if (arrived || distToTarget < 0.1) {
           plane.velocity = 0; plane.baroaltitude = 0; plane.status = 'STANDBY'; plane.energy = 100; plane.ammo = 2;
