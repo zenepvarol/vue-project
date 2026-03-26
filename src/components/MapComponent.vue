@@ -30,6 +30,8 @@ const manualLat = defineModel('manualLat');
 const manualLon = defineModel('manualLon');
 const manualAirportId = defineModel('manualAirportId');
 const destinationAirportId = defineModel('destinationAirportId');
+const destLat = defineModel('destLat');
+const destLon = defineModel('destLon');
 const activeFailure = defineModel('activeFailure');
 
 const markers = {}; // Harita üzerindeki marker objelerini (uçak ikonlarını) tutar
@@ -110,6 +112,29 @@ const resetActivePath = (icao) => {
     const currentPos = [currentFlights.value[icao].lat, currentFlights.value[icao].lon];
     activeRoutes[icao] = L.polyline([currentPos], { color: '#9381ff', weight: 4, opacity: 1 }).addTo(routeLayer);
   }
+};
+
+// Aktif bir görevi başlattığımızda veya güncellediğimizde rotayı çizer
+const drawMissionRoute = (plane, targetPos) => {
+  if (missionPathLayer.value) map.removeLayer(missionPathLayer.value);
+  
+  const startPos = [plane.lat, plane.lon];
+  const targetCoord = [targetPos.lat, targetPos.lon];
+
+  const previewLine = L.polyline([startPos, targetCoord], {
+    color: '#e74c3c', weight: 4, dashArray: '10, 5', opacity: 0.7
+  });
+  
+  const targetCircle = L.circleMarker(targetCoord, {
+    radius: 8, color: '#e74c3c', fillOpacity: 1, weight: 2
+  }).bindPopup('<b>BOMBALAMA HEDEFİ</b>');
+
+  const progressLine = L.polyline([startPos], {
+    color: '#e74c3c', weight: 4, opacity: 1
+  });
+
+  missionPathLayer.value = L.layerGroup([previewLine, targetCircle, progressLine]).addTo(map);
+  return progressLine;
 };
 
 // Uçağın o anki konumuna en yakın müttefik havalimanını (üs noktasını) bulur
@@ -226,10 +251,7 @@ const setManualTarget = () => {
     isManualRouting.value = true;
     isPaused.value = false;
 
-    if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
-    emergencyRoute.value = L.polyline([[plane.lat, plane.lon], [target.lat, target.lon]], {
-      color: '#2ecc71', dashArray: '5, 10', weight: 3
-    }).addTo(map);
+    drawMissionRoute(plane, target); // Manuel güncellenen rotanın çizimi
 
     Swal.fire({
       icon: 'success', title: 'Rota Hazır', text: `Mesafe: ${Math.round(dist)} km`,
@@ -303,11 +325,18 @@ const focusFlight = (f) => {
 const assignMission = () => {
   const arr = destinationAirportId.value.toUpperCase().trim();
   const arrAp = airports.value.find(ap => ap.id === arr);
-  if (!arrAp) {
-    Swal.fire('Hata', 'Hedef havalimanı bulunamadı!', 'error');
+  let targetPos = null;
+
+  if (destinationAirportId.value === 'MANUAL_COORD' && destLat.value && destLon.value) {
+    targetPos = { lat: parseFloat(destLat.value), lon: parseFloat(destLon.value) };
+  } else if (arrAp) {
+    targetPos = { lat: arrAp.lat, lon: arrAp.lon };
+  }
+
+  if (!targetPos) {
+    Swal.fire('Hata', 'Geçerli bir hedef (havalimanı veya koordinat) seçin!', 'error');
     return;
   }
-  const targetPos = { lat: arrAp.lat, lon: arrAp.lon };
 
   const availableIcaos = props.myFleetIcaos.filter(icao =>
     currentFlights.value[icao] && currentFlights.value[icao].status === 'STANDBY'
@@ -335,10 +364,7 @@ const assignMission = () => {
   plane.distance_from_dep = 0;
   plane.status = 'GOING_TO_DEST';
 
-  if (missionPathLayer.value) map.removeLayer(missionPathLayer.value);
-  missionPathLayer.value = L.polyline([], {
-    color: '#e74c3c', weight: 4, dashArray: '10, 5'
-  }).addTo(map);
+  drawMissionRoute(plane, targetPos); // Görev rotasını çizimi
 
   activeIcao.value = closestIcao;
   isPaused.value = false;
@@ -424,13 +450,19 @@ onMounted(async () => {
         const targetPos = plane.status === 'GOING_TO_DEP' ? plane.missionDep : plane.missionDest;
         const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos);
 
-        if (missionPathLayer.value) missionPathLayer.value.addLatLng([plane.lat, plane.lon]);
+        if (missionPathLayer.value) {
+          const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+          if (progressLine) progressLine.addLatLng([plane.lat, plane.lon]);
+        }
         map.panTo([plane.lat, plane.lon]);
 
         if (arrived || distToTarget < 0.1) {
           if (plane.status === 'GOING_TO_DEP') {
             plane.status = 'GOING_TO_DEST';
-            if (missionPathLayer.value) missionPathLayer.value.setStyle({ color: '#2ecc71', dashArray: null });
+            if (missionPathLayer.value) {
+               const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+               if (progressLine) progressLine.setStyle({ color: '#2ecc71', dashArray: null });
+            }
           } else {
             triggerExplosion(plane.lat, plane.lon, map);
             if (plane.ammo > 0) plane.ammo--;
@@ -495,10 +527,15 @@ onMounted(async () => {
           plane.baroaltitude -= (plane.baroaltitude - (maxAlt * factor)) * 0.02;
         }
 
+        if (missionPathLayer.value) {
+          const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+          if (progressLine) progressLine.addLatLng([plane.lat, plane.lon]);
+        }
+
         if (arrived || remainingDist < 0.1) {
           plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
-          if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+          if (missionPathLayer.value) { map.removeLayer(missionPathLayer.value); missionPathLayer.value = null; }
           Swal.fire({
             title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota Tamamlandı.`,
             icon: 'info', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true

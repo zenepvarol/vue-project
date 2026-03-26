@@ -22,6 +22,8 @@
       v-model:manualLon="manualLon"
       v-model:manualAirportId="manualAirportId"
       v-model:destinationAirportId="destinationAirportId"
+      v-model:destLat="destLat"
+      v-model:destLon="destLon"
       v-model:activeFailure="activeFailure"
       :myFleetIcaos="myFleetIcaos"
       :selectedFlight="selectedFlight"
@@ -30,6 +32,8 @@
     <RightPanel
       v-model:activeIcao="activeIcao"
       v-model:destinationAirportId="destinationAirportId"
+      v-model:destLat="destLat"
+      v-model:destLon="destLon"
       v-model:manualAirportId="manualAirportId"
       v-model:manualLat="manualLat"
       v-model:manualLon="manualLon"
@@ -79,6 +83,8 @@ const manualLat = ref(null); // Manuel hedef enlemi
 const manualLon = ref(null); // Manuel hedef boylamı
 const manualAirportId = ref(''); // Manuel seçilen havalimanı ID
 const destinationAirportId = ref(''); // İlk görev ataması yapılan hedef ID
+const destLat = ref(null);
+const destLon = ref(null);
 const activeFailure = ref(null); // Aktif arıza tipi (yakıt/sinyal)
 const myFleetIcaos = ["9005", "9501", "9802", "7001", "7002", "7003", "7004", "7005"]; // Envanter tanımlanması
 

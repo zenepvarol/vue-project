@@ -3,6 +3,8 @@
     <TargetSelection
       v-if="!selectedFlight"
       v-model:destinationAirportId="destinationAirportId"
+      v-model:destLat="destLat"
+      v-model:destLon="destLon"
       :airports="airports"
       @assign-mission="$emit('assign-mission')"
     />
@@ -65,6 +67,8 @@ defineProps({
  */
 const activeIcao = defineModel('activeIcao');
 const destinationAirportId = defineModel('destinationAirportId', { type: String });
+const destLat = defineModel('destLat');
+const destLon = defineModel('destLon');
 const manualAirportId = defineModel('manualAirportId', { type: String });
 const manualLat = defineModel('manualLat');
 const manualLon = defineModel('manualLon');
