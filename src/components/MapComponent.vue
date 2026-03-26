@@ -483,12 +483,19 @@ onMounted(async () => {
       } else if (isEmergency.value && nearestAirport.value) {
         const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
         const dist = getDistance(currentPos, targetPos);
-        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, 5);
+        
+        // İniş sırasında hızı ve adımı kalan mesafeye göre orantılı düşürüyoruz
+        const stepSize = Math.max(0.05, plane.velocity / 2000); 
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+        
         if (!arrived && dist > 0) {
-          const estimatedStepsLeft = dist / 5;
-          if (estimatedStepsLeft > 1) {
-            plane.velocity -= (plane.velocity / estimatedStepsLeft);
-            plane.baroaltitude -= (plane.baroaltitude / estimatedStepsLeft);
+          // Kalan mesafe üzerinden kaç adım kaldığını hesapla
+          const stepsToTarget = dist / stepSize;
+          
+          if (stepsToTarget > 0) {
+            // Hız ve irtifayı kalan adım sayısına göre azaltarak tam hedefte 0'a ulaşmasını sağla
+            plane.velocity -= (plane.velocity / stepsToTarget);
+            plane.baroaltitude -= (plane.baroaltitude / stepsToTarget);
           }
         }
         if (arrived) {
