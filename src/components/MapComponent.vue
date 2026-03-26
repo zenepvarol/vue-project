@@ -542,6 +542,7 @@ onMounted(async () => {
         if (arrived || remainingDist < 0.1) {
           plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
+          plane.status = 'ARRIVED';
           if (missionPathLayer.value) { map.removeLayer(missionPathLayer.value); missionPathLayer.value = null; }
           Swal.fire({
             title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota Tamamlandı.`,
@@ -551,7 +552,12 @@ onMounted(async () => {
       // 5. Durum: Tanımlanmış rota noktaları olan standart JSON uçuş rotasında ilerleme
       } else if (path && path.length > 0) {
         const step = animationSteps.value[icao] || 0;
-        if (step + 1 >= path.length) { plane.velocity = 0; plane.baroaltitude = 0; return; }
+        if (step + 1 >= path.length) { 
+          plane.velocity = 0; 
+          plane.baroaltitude = 0; 
+          plane.status = 'COMPLETED';
+          return; 
+        }
         const nextPoint = path[step + 1];
         const arrived = movePlane(icao, nextPoint.lat, nextPoint.lon, Math.max(plane.velocity, 20) / 2000);
         plane.distance_from_dep = (path[step].distance_from_dep || 0) + getDistance({ lat: path[step].lat, lon: path[step].lon }, currentPos);

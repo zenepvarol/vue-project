@@ -27,8 +27,8 @@
             <i class="mdi mdi-pulse" style="font-size: 14px;"></i> Durum
           </label>
           <span
-            :style="{ color: isEmergency ? '#e74c3c' : (isReturningToStart ? '#3498db' : (isPaused ? '#f39c12' : '#2ecc71')), fontWeight: 'bold' }">
-            {{ isEmergency ? 'ACİL İNİŞTE' : (isReturningToStart ? 'ANA MERKEZE DÖNÜLÜYOR' : (isPaused ? 'DURDURULDU / BEKLEMEDE' : 'GÖREVDE')) }}
+            :style="{ color: statusColor, fontWeight: 'bold' }">
+            {{ statusText }}
           </span>
         </div>
 
@@ -130,9 +130,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 
-
-defineProps({
+const props = defineProps({
   selectedFlight: Object,
   airports: Array,
   activeFailure: Object,
@@ -158,4 +158,25 @@ defineEmits([
   'handle-manual-emergency',
   'set-manual-target'
 ]);
+
+const STATUS_CONFIGS = {
+  EMERGENCY: { text: 'ACİL İNİŞTE', color: '#e74c3c' },
+  RETURNING: { text: 'ANA MERKEZE DÖNÜLÜYOR', color: '#3498db' },
+  MISSION_COMPLETE: { text: 'HEDEF İMHA EDİLDİ', color: '#2ecc71' },
+  ARRIVED: { text: 'HEDEFE VARILDI', color: '#2ecc71' },
+  PAUSED: { text: 'DURDURULDU / BEKLEMEDE', color: '#f39c12' },
+  ACTIVE: { text: 'GÖREVDE', color: '#2ecc71' }
+};
+
+const currentFlightState = computed(() => {
+  if (props.isEmergency) return 'EMERGENCY';
+  if (props.isReturningToStart) return 'RETURNING';
+  if (props.selectedFlight.status === 'MISSION_COMPLETE') return 'MISSION_COMPLETE';
+  if (props.selectedFlight.status === 'ARRIVED' || props.selectedFlight.status === 'COMPLETED') return 'ARRIVED';
+  if (props.isPaused) return 'PAUSED';
+  return 'ACTIVE';
+});
+
+const statusText = computed(() => STATUS_CONFIGS[currentFlightState.value].text);
+const statusColor = computed(() => STATUS_CONFIGS[currentFlightState.value].color);
 </script>

@@ -7,7 +7,6 @@
 </template>
 
 <script setup>
-
 /**
  * LeftPanel.vue - Sol Navigasyon ve Filtreleme Paneli
  * Bu bileşen, uygulamanın uçuş arama ve liste görüntüleme fonksiyonlarını modüler bir yapıda birleştirir.
@@ -22,8 +21,7 @@ import FlightList from './LeftPanel/FlightList.vue';
 const store = useFlightStore();
 
 /**
- * OLAY YÖNETİMİ (EMITS): FlightList'ten gelen 'focus-flight' (Uçağa odaklan) sinyalini yakalayıp 
- * harita kontrolü için App.vue'ya paslar.
+ * OLAY YÖNETİMİ (EMITS): FlightList'ten gelen 'focus-flight' (Uçağa odaklan) sinyalini yakalayıp harita kontrolü için App.vue'ya paslar.
  */
 defineEmits(['focus-flight']);
 </script>
