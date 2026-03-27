@@ -500,7 +500,13 @@ onMounted(async () => {
         }
         if (arrived) {
           plane.velocity = 0; plane.baroaltitude = 0; isPaused.value = true; isEmergency.value = false;
+          plane.status = 'STANDBY'; plane.energy = 100; plane.ammo = 2; 
           if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+          Swal.fire({ 
+            title: 'ACİL İNİŞ YAPILDI', 
+            text: 'İniş başarılı, ikmal tamamlandı.', 
+            icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false 
+          });
         }
       // 3. Durum: Görev bitti (imha) / iptal edildi, ana üsse (başlangıç koordinatlarına) geri dönüş
       } else if (isReturningToStart.value) {
@@ -543,10 +549,11 @@ onMounted(async () => {
           plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
           plane.status = 'ARRIVED';
+          plane.energy = 100; plane.ammo = 2;
           if (missionPathLayer.value) { map.removeLayer(missionPathLayer.value); missionPathLayer.value = null; }
           Swal.fire({
-            title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota Tamamlandı.`,
-            icon: 'info', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
+            title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota ve ikmal tamamlandı.`,
+            icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
           });
         }
       // 5. Durum: Tanımlanmış rota noktaları olan standart JSON uçuş rotasında ilerleme
@@ -556,6 +563,9 @@ onMounted(async () => {
           plane.velocity = 0; 
           plane.baroaltitude = 0; 
           plane.status = 'COMPLETED';
+          plane.energy = 100;
+          plane.ammo = 2;
+          Swal.fire({ title: 'GÖREV TAMAMLANDI', text: 'İkmal yapıldı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
           return; 
         }
         const nextPoint = path[step + 1];
