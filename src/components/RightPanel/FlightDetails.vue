@@ -88,7 +88,7 @@
           class="returnhome-button" @click="$emit('return-to-start')">
           <i class="mdi mdi-restore" style="font-size: 16px;"></i> ANA MERKEZE DÖN
         </button>
-        <button v-if="isPaused && animationSteps[activeIcao] === 0" class="pause-button paused"
+        <button v-if="isPaused && animationSteps[activeIcao] === 0 && !myFleetIcaos.includes(String(activeIcao))" class="pause-button paused"
           @click="$emit('toggle-pause')">
           <i class="mdi mdi-play" style="font-size: 16px;"></i> KALKIŞ ONAYI VER
         </button>
@@ -164,6 +164,7 @@ const STATUS_CONFIGS = {
   RETURNING: { text: 'ANA MERKEZE DÖNÜLÜYOR', color: '#3498db' },
   MISSION_COMPLETE: { text: 'HEDEF İMHA EDİLDİ', color: '#2ecc71' },
   ARRIVED: { text: 'HEDEFE VARILDI', color: '#2ecc71' },
+  STANDBY: { text: 'HANGARDA BEKLEMEDE', color: '#95a5a6' },
   PAUSED: { text: 'DURDURULDU / BEKLEMEDE', color: '#f39c12' },
   ACTIVE: { text: 'GÖREVDE', color: '#2ecc71' }
 };
@@ -173,6 +174,7 @@ const currentFlightState = computed(() => {
   if (props.isReturningToStart) return 'RETURNING';
   if (props.selectedFlight.status === 'MISSION_COMPLETE') return 'MISSION_COMPLETE';
   if (props.selectedFlight.status === 'ARRIVED' || props.selectedFlight.status === 'COMPLETED') return 'ARRIVED';
+  if (props.selectedFlight.status === 'STANDBY') return 'STANDBY';
   if (props.isPaused) return 'PAUSED';
   return 'ACTIVE';
 });
