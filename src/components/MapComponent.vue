@@ -450,12 +450,39 @@ onMounted(async () => {
       if (plane.energy > 0 && plane.velocity > 0) plane.energy = Math.max(0, plane.energy - 0.01);
       if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) triggerSimulatedFailure();
       
-      // 1. Durum: Hedef havalimanına veya görev sahasına gidiş işlemi
-      if (plane.status === 'GOING_TO_DEP' || plane.status === 'GOING_TO_DEST' || plane.status === 'MISSION_COMPLETE') {
-        const targetPos = plane.status === 'GOING_TO_DEP' ? plane.missionDep : plane.missionDest;
+      // 1. Durum: Acil durum aktif (En yakın havalimanına acil iniş)
+      if (isEmergency.value && nearestAirport.value) {
+        const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
+        const dist = getDistance(currentPos, targetPos);
         
-        // Yolun uzunluğuna göre rakım belirleme
-        const dynamicCruiseAlt = Math.min(10000, Math.max(1000, (plane.trip_distance || 100) * 100));
+        // İniş sırasında hızı ve adımı kalan mesafeye göre orantılı düşürüyoruz
+        const stepSize = Math.max(0.05, plane.velocity / 2000); 
+        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+        
+        if (!arrived && dist > 0) {
+          // Kalan mesafe üzerinden kaç adım kaldığını hesapla
+          const stepsToTarget = dist / stepSize;
+          
+          if (stepsToTarget > 0) {
+            // Hız ve irtifayı kalan adım sayısına göre azaltarak tam hedefte 0'a ulaşmasını sağla
+            plane.velocity -= (plane.velocity / stepsToTarget);
+            plane.baroaltitude -= (plane.baroaltitude / stepsToTarget);
+          }
+        }
+        if (arrived) {
+          plane.velocity = 0; plane.baroaltitude = 0; isPaused.value = true; isEmergency.value = false;
+          plane.status = 'EMERGENCY_LANDED'; plane.energy = 100; plane.ammo = 2; 
+          if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+          Swal.fire({ 
+            title: 'ACİL İNİŞ YAPILDI', 
+            text: 'İniş başarılı, ikmal tamamlandı.', 
+            icon: 'info', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false 
+          });
+        }
+      // 2. Durum: Hedef havalimanına veya görev sahasına gidiş işlemi
+      } else if (plane.status === 'GOING_TO_DEP' || plane.status === 'GOING_TO_DEST' || plane.status === 'MISSION_COMPLETE') {
+        const targetPos = plane.status === 'GOING_TO_DEP' ? plane.missionDep : plane.missionDest;
+                const dynamicCruiseAlt = Math.min(10000, Math.max(1000, (plane.trip_distance || 100) * 100));  // Yolun uzunluğuna göre rakım belirleme
          
         // Hedefe yaklaşıldığında veya bekleme modundayken rakım ve hız korunur
         const keepFlightEnv = plane.status === 'GOING_TO_DEST' || plane.status === 'MISSION_COMPLETE';
@@ -495,35 +522,6 @@ onMounted(async () => {
               }
             }, 3000);
           }
-        }
-      // 2. Durum: Acil durum aktif (En yakın havalimanına acil iniş)
-      } else if (isEmergency.value && nearestAirport.value) {
-        const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
-        const dist = getDistance(currentPos, targetPos);
-        
-        // İniş sırasında hızı ve adımı kalan mesafeye göre orantılı düşürüyoruz
-        const stepSize = Math.max(0.05, plane.velocity / 2000); 
-        const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
-        
-        if (!arrived && dist > 0) {
-          // Kalan mesafe üzerinden kaç adım kaldığını hesapla
-          const stepsToTarget = dist / stepSize;
-          
-          if (stepsToTarget > 0) {
-            // Hız ve irtifayı kalan adım sayısına göre azaltarak tam hedefte 0'a ulaşmasını sağla
-            plane.velocity -= (plane.velocity / stepsToTarget);
-            plane.baroaltitude -= (plane.baroaltitude / stepsToTarget);
-          }
-        }
-        if (arrived) {
-          plane.velocity = 0; plane.baroaltitude = 0; isPaused.value = true; isEmergency.value = false;
-          plane.status = 'STANDBY'; plane.energy = 100; plane.ammo = 2; 
-          if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
-          Swal.fire({ 
-            title: 'ACİL İNİŞ YAPILDI', 
-            text: 'İniş başarılı, ikmal tamamlandı.', 
-            icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false 
-          });
         }
       // 3. Durum: Görev bitti (imha) / iptal edildi, ana üsse (başlangıç koordinatlarına) geri dönüş
       } else if (isReturningToStart.value) {

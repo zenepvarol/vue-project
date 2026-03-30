@@ -161,6 +161,7 @@ defineEmits([
 
 const STATUS_CONFIGS = {
   EMERGENCY: { text: 'ACİL İNİŞTE', color: '#e74c3c' },
+  EMERGENCY_LANDED: { text: 'ACİL İNİŞ YAPTI', color: '#e67e22' },
   RETURNING: { text: 'ANA MERKEZE DÖNÜLÜYOR', color: '#3498db' },
   MISSION_COMPLETE: { text: 'HEDEF İMHA EDİLDİ', color: '#2ecc71' },
   ARRIVED: { text: 'HEDEFE VARILDI', color: '#2ecc71' },
@@ -172,6 +173,7 @@ const STATUS_CONFIGS = {
 const currentFlightState = computed(() => {
   if (props.isEmergency) return 'EMERGENCY';
   if (props.isReturningToStart) return 'RETURNING';
+  if (props.selectedFlight.status === 'EMERGENCY_LANDED') return 'EMERGENCY_LANDED';
   if (props.selectedFlight.status === 'MISSION_COMPLETE') return 'MISSION_COMPLETE';
   if (props.selectedFlight.status === 'ARRIVED' || props.selectedFlight.status === 'COMPLETED') return 'ARRIVED';
   if (props.selectedFlight.status === 'STANDBY') return 'STANDBY';
