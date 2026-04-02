@@ -1,32 +1,28 @@
 <template>
   <div class="fleet-status-section"
-    style="padding: 10px; border-top: none; flex: 1; overflow-y: auto; scrollbar-width: thin;">
+    style="padding: 0 10px 10px 10px; flex: 1; overflow-y: auto; scrollbar-width: thin;">
     <div class="fleet-grid">
-      <div v-for="f in store.filteredFlights" :key="f.icao24" class="fleet-mini-card"
-        :class="{ 'is-active': store.activeIcao === f.icao24 }" @click="$emit('focus-flight', f)">
-        <div class="mini-card-header">
-          <span class="mini-callsign">{{ f.callsign || 'İHA' }}</span>
-          <span class="mini-status-dot" :style="{ backgroundColor: f.energy < 20 ? '#e74c3c' : '#2ecc71' }"></span>
+      <v-card v-for="f in store.filteredFlights" :key="f.icao24" class="fleet-mini-card mb-0" density="compact"
+        :variant="store.activeIcao === f.icao24 ? 'tonal' : 'flat'"
+        :color="store.activeIcao === f.icao24 ? 'primary' : ''" @click="$emit('focus-flight', f)"
+        style="padding: 4px 6px; cursor: pointer; transition: 0.2s;">
+        <div class="mini-card-header d-flex justify-space-between align-center mb-0">
+          <span class="mini-callsign font-weight-bold" style="font-size: 11px;">{{ f.callsign || 'İHA' }}</span>
+          <v-icon :color="f.energy < 20 ? 'error' : 'success'" size="8">mdi-circle</v-icon>
         </div>
-        <div class="mini-stats">
-          <span>
-            <i class="mdi mdi-gauge" style="font-size: 12px;"></i> {{ Math.round(f.velocity) }} kt
-          </span>
-          <span>
-            <i class="mdi mdi-image-filter-hdr" style="font-size: 12px;"></i> {{ Math.round(f.baroaltitude) }} ft
-          </span>
+
+        <div class="mini-stats d-flex justify-space-between mb-1" style="font-size: 10px; opacity: 0.8;">
+          <span><v-icon icon="mdi-gauge" size="12" class="mr-1" />{{ Math.round(f.velocity) }} kt</span>
+          <span><v-icon icon="mdi-image-filter-hdr" size="12" class="mr-1" />{{ Math.round(f.baroaltitude) }} ft</span>
         </div>
-        <div class="mini-energy-bar">
-          <div class="mini-energy-fill"
-            :style="{ width: f.energy + '%', backgroundColor: f.energy < 20 ? '#e74c3c' : '#2ecc71' }"></div>
-        </div>
-      </div>
+
+        <v-progress-linear :model-value="f.energy" :color="f.energy < 20 ? 'error' : 'success'" height="3" rounded />
+      </v-card>
     </div>
   </div>
 </template>
 
 <script setup>
-
 import { useFlightStore } from '@/stores/flightStore';
 
 const store = useFlightStore();
