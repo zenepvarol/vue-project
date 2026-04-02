@@ -1,63 +1,37 @@
 <template>
-  <div class="app-container" :class="{ 'dark-mode-active': darkMode }">
-    <LeftPanel @focus-flight="(f) => mapRef?.focusFlight(f)" />
+  <v-app :theme="darkMode ? 'dark' : 'light'" style="display: block !important;">
 
-    <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
-      <i v-if="sidebarOpen" class="mdi mdi-chevron-left" style="font-size: 20px;"></i>
-      <i v-else class="mdi mdi-chevron-right" style="font-size: 20px;"></i>
-    </button>
+    <div class="app-container" :class="{ 'dark-mode-active': darkMode }">
 
-    <MapComponent
-      ref="mapRef"
-      v-model:currentFlights="currentFlights"
-      v-model:activeIcao="activeIcao"
-      v-model:isPaused="isPaused"
-      v-model:animationSteps="animationSteps"
-      v-model:airports="airports"
-      v-model:isEmergency="isEmergency"
-      v-model:isReturningToStart="isReturningToStart"
-      v-model:isEmergencySimulated="isEmergencySimulated"
-      v-model:emergencyCountdown="emergencyCountdown"
-      v-model:manualLat="manualLat"
-      v-model:manualLon="manualLon"
-      v-model:manualAirportId="manualAirportId"
-      v-model:destinationAirportId="destinationAirportId"
-      v-model:destLat="destLat"
-      v-model:destLon="destLon"
-      v-model:activeFailure="activeFailure"
-      :myFleetIcaos="myFleetIcaos"
-      :selectedFlight="selectedFlight"
-    />
+      <LeftPanel @focus-flight="(f) => mapRef?.focusFlight(f)" />
 
-    <RightPanel
-      v-model:activeIcao="activeIcao"
-      v-model:destinationAirportId="destinationAirportId"
-      v-model:destLat="destLat"
-      v-model:destLon="destLon"
-      v-model:manualAirportId="manualAirportId"
-      v-model:manualLat="manualLat"
-      v-model:manualLon="manualLon"
-      :selectedFlight="selectedFlight"
-      :airports="airports"
-      :activeFailure="activeFailure"
-      :isEmergencySimulated="isEmergencySimulated"
-      :isEmergency="isEmergency"
-      :isReturningToStart="isReturningToStart"
-      :isPaused="isPaused"
-      :myFleetIcaos="myFleetIcaos"
-      :animationSteps="animationSteps"
-      :emergencyCountdown="emergencyCountdown"
-      @assign-mission="() => mapRef?.assignMission()"
-      @recenter-map="() => mapRef?.recenterMap()"
-      @return-to-start="() => mapRef?.returnToStart()"
-      @toggle-pause="() => mapRef?.togglePause()"
-      @trigger-simulated-failure="() => mapRef?.triggerSimulatedFailure()"
-      @handle-manual-emergency="() => mapRef?.handleManualEmergency()"
-      @set-manual-target="() => mapRef?.setManualTarget()"
-    />
-  </div>
+      <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
+        <v-icon v-if="sidebarOpen">mdi-chevron-left</v-icon>
+        <v-icon v-else>mdi-chevron-right</v-icon>
+      </button>
+
+      <MapComponent ref="mapRef" v-model:currentFlights="currentFlights" v-model:activeIcao="activeIcao"
+        v-model:isPaused="isPaused" v-model:animationSteps="animationSteps" v-model:airports="airports"
+        v-model:isEmergency="isEmergency" v-model:isReturningToStart="isReturningToStart"
+        v-model:isEmergencySimulated="isEmergencySimulated" v-model:emergencyCountdown="emergencyCountdown"
+        v-model:manualLat="manualLat" v-model:manualLon="manualLon" v-model:manualAirportId="manualAirportId"
+        v-model:destinationAirportId="destinationAirportId" v-model:destLat="destLat" v-model:destLon="destLon"
+        v-model:activeFailure="activeFailure" :myFleetIcaos="myFleetIcaos" :selectedFlight="selectedFlight" />
+
+      <RightPanel v-model:activeIcao="activeIcao" v-model:destinationAirportId="destinationAirportId"
+        v-model:destLat="destLat" v-model:destLon="destLon" v-model:manualAirportId="manualAirportId"
+        v-model:manualLat="manualLat" v-model:manualLon="manualLon" :selectedFlight="selectedFlight"
+        :airports="airports" :activeFailure="activeFailure" :isEmergencySimulated="isEmergencySimulated"
+        :isEmergency="isEmergency" :isReturningToStart="isReturningToStart" :isPaused="isPaused"
+        :myFleetIcaos="myFleetIcaos" :animationSteps="animationSteps" :emergencyCountdown="emergencyCountdown"
+        @assign-mission="() => mapRef?.assignMission()" @recenter-map="() => mapRef?.recenterMap()"
+        @return-to-start="() => mapRef?.returnToStart()" @toggle-pause="() => mapRef?.togglePause()"
+        @trigger-simulated-failure="() => mapRef?.triggerSimulatedFailure()"
+        @handle-manual-emergency="() => mapRef?.handleManualEmergency()"
+        @set-manual-target="() => mapRef?.setManualTarget()" />
+    </div>
+  </v-app>
 </template>
-
 <script setup>
 
 import { ref, computed } from 'vue';

@@ -5,31 +5,20 @@
     </div>
     <div class="details-card active-focus" style="border-left: 4px solid #e74c3c;">
       <div class="manual-target-input" style="border-top: none; padding-top: 0;">
-        <h4 style="color: #e74c3c;">VARILACAK HEDEF</h4>
-        <p style="font-size: 11px; opacity: 0.7; margin-bottom: 15px;">
-          Sistem, hedefe en yakın boştaki İHA'yı otomatik olarak sevk edecektir.
-        </p>
+        <h4 style="color: #e74c3c; margin-bottom: 5px;">VARILACAK HEDEF</h4>
+        <p style="font-size: 11px; opacity: 0.7; margin-bottom: 15px;">Sistem, en yakın boştaki İHA'yı otomatik sevk eder.</p>
 
-        <input v-model="destinationAirportId" type="text" placeholder="Yeni Hedef Belirle"
-          class="full-width-input" list="airport-list">
+        <v-autocomplete v-model="destinationAirportId" label="Hedef Seçin" color="error" variant="outlined" density="comfortable"
+          :items="[{ id: 'MANUAL_COORD', name: 'Manuel Giriş' }, ...airports]" item-title="name" item-value="id" class="mb-2" hide-details />
 
-        <datalist id="airport-list">
-          <option value="MANUAL_COORD"> Manuel Koordinat Girişi</option>
-          <option v-for="ap in airports" :key="ap.id" :value="ap.id">{{ ap.name }} ({{ ap.id }})</option>
-        </datalist>
-
-        <div v-if="destinationAirportId === 'MANUAL_COORD'" class="input-row"
-          style="margin-top: 10px; display: flex; gap: 5px;">
-          <input v-model="destLat" type="number" placeholder="Enlem (Lat)" class="coord-input" step="0.000001"
-            style="flex: 1; padding: 8px; font-size: 12px; border-radius: 4px; border: 1px solid #ddd; color: #333">
-          <input v-model="destLon" type="number" placeholder="Boylam (Lon)" class="coord-input" step="0.000001"
-            style="flex: 1; padding: 8px; font-size: 12px; border-radius: 4px; border: 1px solid #ddd; color: #333">
+        <div v-if="destinationAirportId === 'MANUAL_COORD'" class="d-flex gap-2 mt-3">
+          <v-text-field v-model="destLat" label="Lat" type="number" variant="outlined" density="compact" hide-details color="error" />
+          <v-text-field v-model="destLon" label="Lon" type="number" variant="outlined" density="compact" hide-details color="error" />
         </div>
 
-        <button class="apply-target-btn" @click="$emit('assign-mission')"
-          style="margin-top: 20px; background: #e74c3c; color: white; width: 100%; border: none; font-weight: bold; padding: 12px; border-radius: 6px;">
-          HEDEFİ ONAYLA VE EN YAKIN BİRİMİ SEVK ET
-        </button>
+        <v-btn color="error" block size="large" prepend-icon="mdi-navigation-variant" @click="$emit('assign-mission')" class="mt-4" style="text-transform: none; font-weight: bold; margin-top: 20px !important;">
+          HEDEFİ ONAYLA VE SEVK ET
+        </v-btn>
       </div>
     </div>
   </div>
