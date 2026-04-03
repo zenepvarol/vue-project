@@ -55,35 +55,12 @@ body {
   top: 50%;
   transform: translateY(-50%);
   z-index: 1100;
-  background: #f7d9c4;
-  border: 1px solid #ccc;
-  border-left: none;
-  border-radius: 0 8px 8px 0;
-  padding: 12px 6px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  transition: left 0.3s ease, background 0.3s, color 0.3s;
-  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.15);
-  line-height: 1;
+  transition: left 0.3s ease;
+  min-width: 0 !important;
 }
 
 .sidebar-toggle:not(.open) {
   left: 0;
-}
-
-.dark-mode-active .sidebar-toggle {
-  background: #16213e;
-  border-color: #333;
-  color: #e0e0e0;
-}
-
-.sidebar-toggle:hover {
-  background: #fec3a6;
-}
-
-.dark-mode-active .sidebar-toggle:hover {
-  background: #0f3460;
 }
 
 .dark-mode-active .sidebar {
@@ -97,35 +74,6 @@ body {
 
 .dark-mode-active .sidebar.right {
   border-left: 1px solid #333;
-}
-
-.sidebar-header {
-  padding: 12px 15px;
-  background: #e2cfc4;
-  border-bottom: 1px solid #ccc;
-  transition: background 0.3s;
-}
-
-.dark-mode-active .sidebar-header {
-  background: #16213e;
-  border-bottom-color: #333;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.sidebar-header h3 {
-  margin: 0;
-  color: #000;
-  transition: color 0.3s;
-}
-
-.dark-mode-active .sidebar-header h3 {
-  color: #e0e0e0;
 }
 
 .details-row-inline {
@@ -193,24 +141,6 @@ body {
   border: 1px solid #333;
 }
 
-.details-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-}
-
-.header-text {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.model-subtitle {
-  font-size: 12px;
-  color: #888;
-}
-
 .dark-mode-active .details-header {
   border-bottom-color: #2a2a4a;
 }
@@ -224,30 +154,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.detail-item label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #888;
-  font-weight: bold;
-  letter-spacing: 0.5px;
-}
-
-.detail-item span {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.dark-mode-active .detail-item span {
-  color: #e0e0e0;
 }
 
 .airport-marker {

@@ -5,10 +5,10 @@
 
       <LeftPanel @focus-flight="(f) => mapRef?.focusFlight(f)" />
 
-      <button class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar">
-        <v-icon v-if="sidebarOpen">mdi-chevron-left</v-icon>
-        <v-icon v-else>mdi-chevron-right</v-icon>
-      </button>
+      <v-btn class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar" color="surface"
+        elevation="4" rounded="e-lg" width="30" height="50">
+        <v-icon :icon="sidebarOpen ? 'mdi-chevron-left' : 'mdi-chevron-right'" />
+      </v-btn>
 
       <MapComponent ref="mapRef" v-model:currentFlights="currentFlights" v-model:activeIcao="activeIcao"
         v-model:isPaused="isPaused" v-model:animationSteps="animationSteps" v-model:airports="airports"
