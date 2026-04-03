@@ -10,8 +10,14 @@
           eder.</p>
 
         <v-autocomplete v-model="destinationAirportId" label="Hedef Seçin" color="error" variant="outlined"
-          density="compact" :items="[{ id: 'MANUAL_COORD', name: 'Manuel Giriş' }, ...airports]" item-title="name"
-          item-value="id" class="mb-2" hide-details />
+          density="compact" :items="[{ id: 'MANUAL_COORD', name: 'Manuel Giriş' }, ...airports]" 
+          :item-title="item => item.id === 'MANUAL_COORD' ? item.name : (item.name && item.id ? `${item.name} (${item.id})` : (item.name || item.id || ''))"
+          item-value="id" :custom-filter="(value, query, item) => {
+            const q = query.toLowerCase();
+            const nm = (item.raw.name || '').toLowerCase();
+            const cid = (item.raw.id || '').toLowerCase();
+            return nm.includes(q) || cid.includes(q);
+          }" class="mb-2" hide-details />
 
         <div v-if="destinationAirportId === 'MANUAL_COORD'" class="d-flex gap-2 mt-2">
           <v-text-field v-model="destLat" label="Lat" type="number" variant="outlined" density="compact" hide-details

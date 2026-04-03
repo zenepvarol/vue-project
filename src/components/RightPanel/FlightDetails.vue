@@ -1,11 +1,9 @@
 <template>
   <div class="flight-details">
+    <v-btn icon variant="text" size="small" @click="activeIcao = null" title="Kapat" style="position: absolute; top: 10px; right: 10px; z-index: 10;"><v-icon icon="mdi-close" color="grey-darken-1" /></v-btn>
     <div class="sidebar-header">
       <div class="header-top">
         <h3>Uçuş Detayları</h3>
-        <v-btn icon variant="text" size="small" @click="activeIcao = null" title="Kapat">
-          <v-icon icon="mdi-close" color="grey-darken-1" />
-        </v-btn>
       </div>
     </div>
 
@@ -15,7 +13,8 @@
           <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
           <span class="model-subtitle">{{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}</span>
         </div>
-        <v-btn icon variant="elevated" color="primary" size="small" @click="$emit('recenter-map')" title="Uçağa Odaklan">
+        <v-btn icon variant="elevated" color="primary" size="small" @click="$emit('recenter-map')"
+          title="Uçağa Odaklan">
           <v-icon icon="mdi-navigation" style="transform: rotate(45deg);" />
         </v-btn>
       </div>
@@ -31,18 +30,17 @@
           </span>
         </div>
 
-        <div class="detail-item full-width">
-          <label><v-icon icon="mdi-battery" size="14" /> YAKIT (%{{ Math.round(selectedFlight.energy) }})</label>
+        <div class="detail-item full-width"><label><v-icon icon="mdi-battery" size="14" /> YAKIT (%{{
+          Math.round(selectedFlight.energy) }})</label>
           <v-progress-linear :model-value="selectedFlight.energy"
             :color="selectedFlight.energy < 20 ? 'error' : 'success'" height="8" rounded />
         </div>
 
-        <div class="detail-item full-width" v-if="myFleetIcaos.includes(String(activeIcao))">
-          <label><v-icon icon="mdi-bomb" size="14" /> MÜHİMMAT DURUMU</label>
-          <div class="ammo-container d-flex gap-2">
-            <v-icon v-for="i in 2" :key="i" :icon="selectedFlight.ammo < i ? 'mdi-bomb-off' : 'mdi-bomb'"
-              :color="selectedFlight.ammo < i ? 'grey-darken-1' : 'error'" size="28" />
-          </div>
+        <div class="detail-item full-width" v-if="myFleetIcaos.includes(String(activeIcao))"><label><v-icon
+              icon="mdi-bomb" size="14" /> MÜHİMMAT DURUMU</label>
+          <div class="ammo-container d-flex gap-2"><v-icon v-for="i in 2" :key="i"
+              :icon="selectedFlight.ammo < i ? 'mdi-bomb-off' : 'mdi-bomb'"
+              :color="selectedFlight.ammo < i ? 'grey-darken-1' : 'error'" size="28" /></div>
         </div>
 
         <div class="details-row-inline d-flex justify-space-between mt-1">
@@ -59,11 +57,13 @@
         </div>
 
         <div v-if="selectedFlight.trip_distance > 0" class="mt-2">
-          <div class="d-flex justify-space-between mb-1" style="font-size: 11px; font-weight: bold; color: var(--v-theme-primary);">
+          <div class="d-flex justify-space-between mb-1"
+            style="font-size: 11px; font-weight: bold; color: var(--v-theme-primary);">
             <span>YOLCULUK İLERLEMESİ</span>
             <span>%{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}</span>
           </div>
-          <v-progress-linear :model-value="(selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100" color="primary" height="6" rounded />
+          <v-progress-linear :model-value="(selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100"
+            color="primary" height="6" rounded />
         </div>
       </div>
 
@@ -83,7 +83,7 @@
         <div v-if="isEmergencySimulated" class="emergency-decision-box border-error pa-2">
           <div class="emergency-warning-text" :style="{ color: activeFailure?.color || '#e74c3c', fontSize: '12px' }">
             <v-icon icon="mdi-alert-octagon" class="pulse-icon" /> {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{
-            emergencyCountdown }}s)
+              emergencyCountdown }}s)
           </div>
           <v-btn color="error" block size="small" @click="$emit('handle-manual-emergency')">ACİL İNİŞ YAP</v-btn>
         </div>
@@ -92,8 +92,14 @@
       <div class="manual-target-input mt-6">
         <h4 style="margin-bottom: 20px !important;">Operasyonu Güncelle</h4>
         <v-autocomplete v-model="manualAirportId" label="Yeni Hedef Seç" variant="outlined" density="compact"
-          :items="[{ id: 'MANUAL_COORD', name: 'Manuel Koordinat Girişi' }, ...airports]" item-title="name"
-          item-value="id" hide-details />
+          :items="[{ id: 'MANUAL_COORD', name: 'Manuel Koordinat Girişi' }, ...airports]"
+          :item-title="item => item.id === 'MANUAL_COORD' ? item.name : (item.name && item.id ? `${item.name} (${item.id})` : (item.name || item.id || ''))"
+          item-value="id" :custom-filter="(value, query, item) => {
+            const q = query.toLowerCase();
+            const nm = (item.raw.name || '').toLowerCase();
+            const cid = (item.raw.id || '').toLowerCase();
+            return nm.includes(q) || cid.includes(q);
+          }" hide-details />
 
         <div v-if="manualAirportId === 'MANUAL_COORD'" class="d-flex gap-1 mt-2">
           <v-text-field v-model="manualLat" label="Lat" type="number" variant="outlined" density="compact"
@@ -133,14 +139,7 @@ const manualAirportId = defineModel('manualAirportId', { type: String });
 const manualLat = defineModel('manualLat');
 const manualLon = defineModel('manualLon');
 
-defineEmits([
-  'recenter-map',
-  'return-to-start',
-  'toggle-pause',
-  'trigger-simulated-failure',
-  'handle-manual-emergency',
-  'set-manual-target'
-]);
+defineEmits(['recenter-map', 'return-to-start', 'toggle-pause', 'trigger-simulated-failure', 'handle-manual-emergency', 'set-manual-target']);
 
 const STATUS_CONFIGS = {
   EMERGENCY: { text: 'ACİL İNİŞTE', color: '#e74c3c' },

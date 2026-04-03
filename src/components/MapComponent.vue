@@ -17,34 +17,15 @@ const props = defineProps({
   selectedFlight: Object
 });
 
-const currentFlights = defineModel('currentFlights');
-const activeIcao = defineModel('activeIcao');
-const isPaused = defineModel('isPaused');
-const animationSteps = defineModel('animationSteps');
-const airports = defineModel('airports');
-const isEmergency = defineModel('isEmergency');
-const isReturningToStart = defineModel('isReturningToStart');
-const isEmergencySimulated = defineModel('isEmergencySimulated');
-const emergencyCountdown = defineModel('emergencyCountdown');
-const manualLat = defineModel('manualLat');
-const manualLon = defineModel('manualLon');
-const manualAirportId = defineModel('manualAirportId');
-const destinationAirportId = defineModel('destinationAirportId');
-const destLat = defineModel('destLat');
-const destLon = defineModel('destLon');
-const activeFailure = defineModel('activeFailure');
+const currentFlights = defineModel('currentFlights'), activeIcao = defineModel('activeIcao'), isPaused = defineModel('isPaused');
+const animationSteps = defineModel('animationSteps'), airports = defineModel('airports'), isEmergency = defineModel('isEmergency');
+const isReturningToStart = defineModel('isReturningToStart'), isEmergencySimulated = defineModel('isEmergencySimulated'), emergencyCountdown = defineModel('emergencyCountdown');
+const manualLat = defineModel('manualLat'), manualLon = defineModel('manualLon'), manualAirportId = defineModel('manualAirportId');
+const destinationAirportId = defineModel('destinationAirportId'), destLat = defineModel('destLat'), destLon = defineModel('destLon'), activeFailure = defineModel('activeFailure');
 
-const markers = {}; // Harita üzerindeki marker objelerini (uçak ikonlarını) tutar
-const flightPaths = ref({}); // Uçuşların tüm rota noktalarını tutar
-const emergencyRoute = ref(null); // Acil durum iniş rotası katmanı
-const activeRoutes = {}; // Uçuşların haritada çizilmiş yol rotalarını tutar
-let map = null; // Leaflet harita nesnesi referansı
-const routeLayer = L.layerGroup(); // Rotaların eklendiği harita katmanı grubu
-const manualTarget = ref(null); // Manuel hedefin (koordinat veya havalimanı) bilgilerini tutar
-const isManualRouting = ref(false); // Manuel olarak hedefe yönlendirme durumunu belirtir
-const missionPathLayer = ref(null); // Aktif görev gidiş-dönüş rotası katmanı
-const tankerFlight = ref(null); // Havada ikmal yapacak olan tanker uçağının verileri
-const tankerMarker = ref(null); // Tanker uçağının harita üzerindeki marker objesi
+const markers = {}, flightPaths = ref({}), emergencyRoute = ref(null), activeRoutes = {};
+let map = null; const routeLayer = L.layerGroup(), manualTarget = ref(null);
+const isManualRouting = ref(false), missionPathLayer = ref(null), tankerFlight = ref(null), tankerMarker = ref(null);
 
 const failureTypes = {
   LOW_BATTERY: {
@@ -523,7 +504,7 @@ onMounted(async () => {
           tMarker.setLatLng([targetPlane.lat, targetPlane.lon]);
           tMarker.setRotationAngle((targetPlane.heading || 0) - 45); // Uçakla aynı açıda durur
 
-          targetPlane.energy = Math.min(100, targetPlane.energy + 0.5);
+          targetPlane.energy = Math.min(100, targetPlane.energy + 0.02); // saniyede %2 artış
           if (targetPlane.energy >= 100) {
             tanker.status = 'RETURNING';
             Swal.fire({
