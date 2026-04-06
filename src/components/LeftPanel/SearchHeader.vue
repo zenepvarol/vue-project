@@ -1,23 +1,56 @@
 <template>
-  <v-sheet class="sidebar-header px-4 py-2" color="transparent">
-    <div class="d-flex justify-space-between align-center mb-1">
-      <div class="text-subtitle-1 font-weight-bold" style="font-size: 15px; margin-left: 15px;">Uçuş Listesi</div>
-      <v-btn icon variant="text" size="small" @click="store.toggleDarkMode" id="dark-mode-toggle">
-        <v-icon :color="store.darkMode ? 'yellow-darken-2' : 'indigo-darken-1'"
-          :icon="store.darkMode ? 'mdi-weather-sunny' : 'mdi-moon-waxing-crescent'" />
-        <v-tooltip activator="parent" location="bottom">{{ store.darkMode ? 'Aydınlık Mod' : 'Karanlık Mod'
-        }}</v-tooltip>
-      </v-btn>
-    </div>
-    <v-text-field v-model="store.searchQuery" placeholder="Uçuş ara (Callsign)..." prepend-inner-icon="mdi-magnify"
-      variant="outlined" density="compact" hide-details color="primary" class="mb-0" bg-color="surface-light"
-      style="max-width: 280px; margin-left: 10px;" />
+  <!-- v-sheet: Bileşenin ana kapsayıcısı. Sayfa arka planına uyumlu, şeffaf bir temel oluşturur. -->
+  <v-sheet class="sidebar-header px-0 py-2" color="transparent">
+    <!-- 1. Satır: Başlık ve Karanlık Mod Butonu -->
+    <!-- no-gutters: Gereksiz sütun boşluklarını siler.
+         justify="center": Tüm içeriği yatayda merkeze toplar.
+         px-4: Sol-sağdan 16px iç boşluk verir.
+         mb-1: Altına 4px dış boşluk bırakır. -->
+    <v-row no-gutters justify="center" class="px-4 mb-1">
+      <!-- cols="12": Tam genişlik kapla (satırın tamamını kullan).
+           style="max-width: 280px;": Genişliği 280px ile sınırla.
+           d-flex: İçindeki elemanları (yazı ve buton) yan yana diz.
+           justify-space-between: Yazıyı en sola, butonu en sağa it.
+           align-center: Yazı ve butonu dikeyde aynı hizada tut. -->
+      <v-col cols="12" style="max-width: 280px;" class="d-flex justify-space-between align-center">
+        <div class="text-subtitle-1 font-weight-bold">Uçuş Listesi</div>
+        <!-- v-btn: Karanlık/Aydınlık modu değiştiren buton. -->
+        <!-- icon: Butonu yuvarlak ve ikon boyutunda yapar.
+             variant="text": Arka planı olmayan, sadece üzerine gelince parlayan buton. -->
+        <v-btn icon variant="text" size="small" @click="store.toggleDarkMode" id="dark-mode-toggle">
+          <!-- v-icon: Mod durumuna göre güneş veya ay ikonu gösterir. -->
+          <v-icon :color="store.darkMode ? 'yellow-darken-2' : 'indigo-darken-1'"
+            :icon="store.darkMode ? 'mdi-weather-sunny' : 'mdi-moon-waxing-crescent'" />
+          <!-- v-tooltip: Üzerine gelince mod ismini gösteren küçük bilgi kutusu. -->
+          <v-tooltip activator="parent" location="bottom">
+            {{ store.darkMode ? 'Aydınlık Mod' : 'Karanlık Mod' }}
+          </v-tooltip>
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <!-- 2. Satır: Arama Çubuğu (Input) -->
+    <!-- justify="center": Arama çubuğunu da başlıkla aynı hizada tutmak için ortalar. -->
+    <v-row no-gutters justify="center" class="px-4">
+      <v-col cols="12" style="max-width: 280px;"> <!-- Arama çubuğunu da başlık kutusuyla aynı boyda tutar. -->
+        <!-- v-text-field: Arama giriş alanı. -->
+        <!-- variant="outlined": Kenarlıklı modern görünüm.
+             density="compact": Daha az yer kaplayan, ince tasarım.
+             hide-details: Altındaki hata mesajı boşluğunu gizler.
+             prepend-inner-icon: Sol tarafa mercek ikonu. -->
+        <v-text-field v-model="store.searchQuery" placeholder="Uçuş ara (Callsign)..." prepend-inner-icon="mdi-magnify"
+          variant="outlined" density="compact" hide-details color="primary" bg-color="surface-light" />
+      </v-col>
+    </v-row>
   </v-sheet>
-  <v-divider />
+
+  <v-divider /> <!-- Header ile altındaki listeyi ayıran ince çizgi. -->
 </template>
 
 <script setup>
+// useFlightStore: Uçuş verilerini ve ayarları (dark mode, arama sorgusu vs.) yöneten depoyu içeri aktarır.
 import { useFlightStore } from '@/stores/flightStore';
 
+// 'store' değişkeni üzerinden tüm uçuş verilerine ve fonksiyonlarına (toggleDarkMode gibi) erişiriz.
 const store = useFlightStore();
 </script>

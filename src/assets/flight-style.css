@@ -248,27 +248,6 @@ body {
   border-radius: 15px !important;
 }
 
-.fleet-status-section {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.section-title {
-  font-size: 14px;
-  color: #9381ff;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.fleet-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
 .fleet-mini-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -282,26 +261,6 @@ body {
 .fleet-mini-card.is-active {
   background: rgba(147, 129, 255, 0.15);
   border-color: #9381ff;
-}
-
-.mini-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.mini-callsign {
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.mini-stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  opacity: 0.8;
-  margin-bottom: 6px;
 }
 
 .explosion-container {
