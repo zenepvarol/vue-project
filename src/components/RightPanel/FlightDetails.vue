@@ -1,96 +1,136 @@
 <template>
   <div class="flight-details">
-    <v-btn icon variant="text" size="small" @click="activeIcao = null" title="Kapat" style="position: absolute; top: 10px; right: 10px; z-index: 10;"><v-icon icon="mdi-close" color="grey-darken-1" /></v-btn>
-    <div class="sidebar-header">
-      <div class="header-top">
-        <h3>Uçuş Detayları</h3>
-      </div>
+    <v-btn icon variant="text" size="small" @click="activeIcao = null" class="position-absolute"
+      style="top: 10px; right: 10px; z-index: 10;">
+      <v-icon icon="mdi-close" color="grey-darken-1" />
+    </v-btn>
+
+    <div class="sidebar-header" style="padding: 0 0 15px 0;"> <!-- Üst başlık alanı -->
+      <h3 class="text-subtitle-1 font-weight-bold">Uçuş Detayları</h3>
     </div>
 
     <div class="details-card active-focus">
-      <div class="details-header">
+      <div class="details-header d-flex justify-space-between align-center mb-4"> <!-- İsim ve odaklanma butonunun olduğu alan -->
         <div class="header-text">
-          <h2>{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
-          <span class="model-subtitle">{{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}</span>
+          <h2 style="color: #e74c3c; font-size: 1.1rem; margin: 0;">{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
+          <span class="model-subtitle text-caption" style="color: #666; font-size: 0.75rem;">
+            {{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}
+          </span>
         </div>
-        <v-btn icon variant="elevated" color="primary" size="small" @click="$emit('recenter-map')"
-          title="Uçağa Odaklan">
+        <v-btn icon variant="elevated" color="primary" size="small" @click="$emit('recenter-map')" title="Uçağa Odaklan">
           <v-icon icon="mdi-navigation" style="transform: rotate(45deg);" />
         </v-btn>
       </div>
 
-      <div class="details-grid"
-        :class="{ 'link-loss-blur': activeFailure?.label.includes('SİNYAL') && isEmergencySimulated }">
-        <div class="detail-item full-width">
-          <label>
-            <i class="mdi mdi-pulse" style="font-size: 14px;"></i> Durum
+      <!-- details-grid: Teknik verilerin toplandığı alan -->
+      <div class="details-grid" :class="{ 'link-loss-blur': activeFailure?.label.includes('SİNYAL') && isEmergencySimulated }">
+        <div class="detail-item full-width mb-3">
+          <label style="font-size: 11px; opacity: 0.7; color: #555;">
+            <v-icon icon="mdi-pulse" size="14" /> Durum
           </label>
-          <span :style="{ color: statusColor, fontWeight: 'bold' }">
+          <span :style="{ color: statusColor, fontWeight: 'bold' }" class="text-subtitle-2">
             {{ statusText }}
           </span>
         </div>
 
-        <div class="detail-item full-width"><label><v-icon icon="mdi-battery" size="14" /> YAKIT (%{{
-          Math.round(selectedFlight.energy) }})</label>
+        <!-- Yakıt Göstergesi -->
+        <div class="detail-item full-width mb-3">
+          <label style="font-size: 11px; font-weight: bold; margin-bottom: 4px; display: block; color: #555;">
+            <v-icon icon="mdi-battery" size="14" /> YAKIT (%{{ Math.round(selectedFlight.energy) }})
+          </label>
           <v-progress-linear :model-value="selectedFlight.energy"
             :color="selectedFlight.energy < 20 ? 'error' : 'success'" height="8" rounded />
         </div>
 
-        <div class="detail-item full-width" v-if="myFleetIcaos.includes(String(activeIcao))"><label><v-icon
-              icon="mdi-bomb" size="14" /> MÜHİMMAT DURUMU</label>
-          <div class="ammo-container d-flex gap-2"><v-icon v-for="i in 2" :key="i"
-              :icon="selectedFlight.ammo < i ? 'mdi-bomb-off' : 'mdi-bomb'"
-              :color="selectedFlight.ammo < i ? 'grey-darken-1' : 'error'" size="28" /></div>
-        </div>
-
-        <div class="details-row-inline d-flex justify-space-between mt-1">
-          <div class="detail-item"><label><v-icon icon="mdi-gauge" size="14" /> Hız</label><span>{{
-            Math.round(selectedFlight.velocity) }} kt</span></div>
-          <div class="detail-item text-right"><label><v-icon icon="mdi-image-filter-hdr" size="14" />
-              Rakım</label><span>{{ Math.round(selectedFlight.baroaltitude) }} ft</span></div>
-        </div>
-
-        <div class="detail-item mt-1">
-          <label><v-icon icon="mdi-map-marker" size="14" /> Mesafe (Gidilen / Toplam)</label>
-          <span>{{ Math.round(selectedFlight.distance_from_dep) }} / {{ Math.round(selectedFlight.trip_distance) }}
-            km</span>
-        </div>
-
-        <div v-if="selectedFlight.trip_distance > 0" class="mt-2">
-          <div class="d-flex justify-space-between mb-1"
-            style="font-size: 11px; font-weight: bold; color: var(--v-theme-primary);">
-            <span>YOLCULUK İLERLEMESİ</span>
-            <span>%{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}</span>
+        <div class="detail-item full-width mb-3" v-if="myFleetIcaos.includes(String(activeIcao))">
+          <label style="font-size: 11px; font-weight: bold; margin-bottom: 8px; display: block; color: #555;">
+            <v-icon icon="mdi-bomb" size="14" /> MÜHİMMAT DURUMU
+          </label>
+          <div class="d-flex gap-2">
+            <v-icon v-for="i in 2" :key="i" :icon="selectedFlight.ammo < i ? 'mdi-bomb-off' : 'mdi-bomb'"
+              :color="selectedFlight.ammo < i ? 'grey-darken-1' : 'error'" size="28" />
           </div>
-          <v-progress-linear :model-value="(selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100"
+        </div>
+
+        <!-- Hız ve Rakım  -->
+        <v-row no-gutters class="mb-3">
+          <v-col cols="6">
+            <div class="detail-item">
+              <label style="font-size: 11px; color: #555;"><v-icon icon="mdi-gauge" size="14" /> Hız</label>
+              <div class="text-body-2 font-weight-bold">{{ Math.round(selectedFlight.velocity) }} kt</div>
+            </div>
+          </v-col>
+          <v-col cols="6" class="text-right">
+            <div class="detail-item">
+              <label style="font-size: 11px; color: #555;"><v-icon icon="mdi-image-filter-hdr" size="14" /> Rakım</label>
+              <div class="text-body-2 font-weight-bold">{{ Math.round(selectedFlight.baroaltitude) }} ft</div>
+            </div>
+          </v-col>
+        </v-row>
+
+        <!-- Mesafe Verisi: Normal uçuşta Gidilen/Toplam, Dönüşte ise Kalan mesafe gösterir -->
+        <div class="detail-item mb-3">
+          <label style="font-size: 11px; color: #555;">
+            <v-icon :icon="isReturningToStart ? 'mdi-home-import-outline' : 'mdi-map-marker'" size="14" /> 
+            {{ isReturningToStart ? 'Ana Merkeze Uzaklık' : 'Mesafe (Gidilen / Toplam) ' }}
+          </label>
+          <span class="text-body-2 font-weight-bold">
+            <template v-if="isReturningToStart">
+              {{ Math.max(0, Math.round(selectedFlight.trip_distance - selectedFlight.distance_from_dep)) }} km
+            </template>
+            <template v-else>
+              {{ Math.round(selectedFlight.distance_from_dep) }} / {{ Math.round(selectedFlight.total_mission_dist || selectedFlight.trip_distance) }} km
+            </template>
+          </span>
+        </div>
+
+        <!-- Yolculuk İlerlemesi: Orijinal hedefe veya mevcut rotaya göre progress bar -->
+        <div v-if="(selectedFlight.total_mission_dist || selectedFlight.trip_distance) > 0" class="mt-2 text-primary">
+          <div class="d-flex justify-space-between mb-1" style="font-size: 11px; font-weight: bold;">
+            <span>{{ isReturningToStart ? 'DÖNÜŞ İLERLEMESİ' : 'YOLCULUK İLERLEMESİ' }}</span>
+            <span v-if="isReturningToStart">
+              %{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}
+            </span>
+            <span v-else>
+              %{{ Math.round((selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100) }}
+            </span>
+          </div>
+          <v-progress-linear 
+            :model-value="isReturningToStart 
+              ? (selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100 
+              : (selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100"
             color="primary" height="6" rounded />
         </div>
       </div>
 
-      <div class="action-section d-flex flex-column gap-2 mt-2">
+      <div class="action-section d-flex flex-column gap-2 mt-4">
         <v-btn
           v-if="(animationSteps[activeIcao] > 0 || (myFleetIcaos.includes(String(activeIcao)) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
-          color="error" variant="outlined" block size="small" prepend-icon="mdi-restore"
-          @click="$emit('return-to-start')">ANA MERKEZE DÖN</v-btn>
+          color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')">
+          ANA MERKEZE DÖN
+        </v-btn>
 
         <v-btn v-if="isPaused && animationSteps[activeIcao] === 0 && !myFleetIcaos.includes(String(activeIcao))"
-          color="success" block size="default" prepend-icon="mdi-play" @click="$emit('toggle-pause')">KALKIŞ ONAYI
-          VER</v-btn>
+          color="success" block size="default" prepend-icon="mdi-play" @click="$emit('toggle-pause')">
+          KALKIŞ ONAYI VER
+        </v-btn>
 
         <v-btn v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart" color="warning" block
-          size="small" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')">ARIZA SİMÜLE ET</v-btn>
+          size="default" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')">
+          ARIZA SİMÜLE ET
+        </v-btn>
 
-        <div v-if="isEmergencySimulated" class="emergency-decision-box border-error pa-2">
-          <div class="emergency-warning-text" :style="{ color: activeFailure?.color || '#e74c3c', fontSize: '12px' }">
-            <v-icon icon="mdi-alert-octagon" class="pulse-icon" /> {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{
-              emergencyCountdown }}s)
+        <!-- Acil Durum Alanı -->
+        <div v-if="isEmergencySimulated" class="pa-2 rounded-lg" style="border: 2px solid #e74c3c;">
+          <div class="text-caption text-center font-weight-bold mb-2 blink-text" style="color: #e74c3c;">
+            <v-icon icon="mdi-alert-octagon" /> {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
           </div>
-          <v-btn color="error" block size="small" @click="$emit('handle-manual-emergency')">ACİL İNİŞ YAP</v-btn>
+          <v-btn color="error" block size="default" @click="$emit('handle-manual-emergency')">ACİL İNİŞ YAP</v-btn>
         </div>
       </div>
 
-      <div class="manual-target-input mt-6">
-        <h4 style="margin-bottom: 20px !important;">Operasyonu Güncelle</h4>
+      <div class="manual-target-input mt-8 pt-4" style="border-top: 1px solid rgba(0,0,0,0.1);">
+        <h4 style="margin-bottom: 20px !important; font-size: 0.95rem; font-weight: bold;">Operasyonu Güncelle</h4>
         <v-autocomplete v-model="manualAirportId" label="Yeni Hedef Seç" variant="outlined" density="compact"
           :items="[{ id: 'MANUAL_COORD', name: 'Manuel Koordinat Girişi' }, ...airports]"
           :item-title="item => item.id === 'MANUAL_COORD' ? item.name : (item.name && item.id ? `${item.name} (${item.id})` : (item.name || item.id || ''))"
@@ -99,18 +139,15 @@
             const nm = (item.raw.name || '').toLowerCase();
             const cid = (item.raw.id || '').toLowerCase();
             return nm.includes(q) || cid.includes(q);
-          }" hide-details />
+          }" hide-details class="mb-2" />
 
-        <div v-if="manualAirportId === 'MANUAL_COORD'" class="d-flex gap-1 mt-2">
-          <v-text-field v-model="manualLat" label="Lat" type="number" variant="outlined" density="compact"
-            hide-details />
-          <v-text-field v-model="manualLon" label="Lon" type="number" variant="outlined" density="compact"
-            hide-details />
-        </div>
+        <v-row v-if="manualAirportId === 'MANUAL_COORD'" dense class="mt-2 mb-2">
+          <v-col cols="6"><v-text-field v-model="manualLat" label="Lat" type="number" variant="outlined" density="compact" hide-details /></v-col>
+          <v-col cols="6"><v-text-field v-model="manualLon" label="Lon" type="number" variant="outlined" density="compact" hide-details /></v-col>
+        </v-row>
 
-        <v-btn color="primary" block size="small" prepend-icon="mdi-arrow-right-bold"
-          @click="$emit('set-manual-target')"
-          style="text-transform: none; font-weight: bold; margin-top: 15px !important;">
+        <v-btn color="primary" block size="default" prepend-icon="mdi-arrow-right-bold" @click="$emit('set-manual-target')"
+          class="font-weight-bold text-none" style="margin-top: 10px !important;">
           HEDEFE YÖNLENDİR
         </v-btn>
       </div>

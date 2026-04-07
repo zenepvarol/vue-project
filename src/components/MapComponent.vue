@@ -12,11 +12,7 @@ import Swal from 'sweetalert2';
 import { getDistance, calculateNextPosition } from '../utils/physics';
 import { triggerExplosion, getPlaneIcon, getAirportIcon, getTankerIcon } from '../utils/mapVisuals';
 
-const props = defineProps({
-  myFleetIcaos: Array,
-  selectedFlight: Object
-});
-
+const props = defineProps({ myFleetIcaos: Array, selectedFlight: Object });
 const currentFlights = defineModel('currentFlights'), activeIcao = defineModel('activeIcao'), isPaused = defineModel('isPaused');
 const animationSteps = defineModel('animationSteps'), airports = defineModel('airports'), isEmergency = defineModel('isEmergency');
 const isReturningToStart = defineModel('isReturningToStart'), isEmergencySimulated = defineModel('isEmergencySimulated'), emergencyCountdown = defineModel('emergencyCountdown');
@@ -28,22 +24,13 @@ let map = null; const routeLayer = L.layerGroup(), manualTarget = ref(null);
 const isManualRouting = ref(false), missionPathLayer = ref(null), tankerFlight = ref(null), tankerMarker = ref(null);
 
 const failureTypes = {
-  LOW_BATTERY: {
-    label: 'DÜŞÜK YAKIT',
-    message: 'Enerji seviyesi %20 altına düştü! Güvenli iniş gerekli.',
-    color: '#e74c3c'
-  },
-  LINK_LOSS: {
-    label: 'SİNYAL KAYBI',
-    message: 'Bağlantı kesildi! 10sn içinde otonom iniş yapılacak.',
-    color: '#f39c12'
-  }
+  LOW_BATTERY: { label: 'DÜŞÜK YAKIT', color: '#e74c3c' },
+  LINK_LOSS: { label: 'SİNYAL KAYBI', color: '#f39c12' }
 };
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
-  const plane = currentFlights.value[icao];
-  const marker = markers[icao];
+  const plane = currentFlights.value[icao], marker = markers[icao];
   if (!plane || !marker) return false;
 
   const { nextLat, nextLon, heading, hasArrived } = calculateNextPosition(
@@ -65,7 +52,9 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   }
 
   marker.setRotationAngle(heading - 45);
-  if (activeRoutes[icao]) activeRoutes[icao].addLatLng(newPos);
+  if (activeRoutes[icao] && !isEmergency.value) {
+    activeRoutes[icao].addLatLng(newPos);
+  }
   return false;
 };
 
@@ -184,10 +173,14 @@ const recenterMap = () => {
 
 const togglePause = () => {
   if (!activeIcao.value) return;
+  const plane = currentFlights.value[activeIcao.value];
   if (isPaused.value) {
     isPaused.value = false;
     isReturningToStart.value = false;
     isEmergency.value = false;
+    if (plane && (plane.status === 'STANDBY' || plane.status === 'COMPLETED' || plane.status === 'ARRIVED' || plane.status === 'EMERGENCY_LANDED')) {
+      plane.status = 'ACTIVE';
+    }
   }
 };
 
@@ -233,8 +226,10 @@ const setManualTarget = () => {
     const dist = getDistance({ lat: plane.lat, lon: plane.lon }, target);
 
     plane.trip_distance = dist;
+    plane.total_mission_dist = dist; // Orijinal görev mesafesini korumak için
     plane.distance_from_dep = 0;
     plane.total_manual_dist = dist;
+    plane.status = 'ACTIVE'; // Operasyon güncellendiğinde durumu anında 'GÖREVDE' yapar
     manualTarget.value = target;
     isManualRouting.value = true;
     isPaused.value = false;
@@ -252,7 +247,6 @@ const setManualTarget = () => {
 const startEmergencyLanding = () => {
   if (props.selectedFlight && nearestAirport.value) {
     const icao = activeIcao.value;
-    resetActivePath(icao);
     isEmergency.value = true;
     isPaused.value = false;
 
@@ -349,6 +343,7 @@ const assignMission = () => {
   const plane = currentFlights.value[closestIcao];
   plane.missionDest = targetPos;
   plane.trip_distance = minDistance;
+  plane.total_mission_dist = minDistance;
   plane.distance_from_dep = 0;
   plane.status = 'GOING_TO_DEST';
 
@@ -397,9 +392,19 @@ onMounted(async () => {
 
     Object.keys(grouped).forEach(icao => {
       const firstPoint = grouped[icao][0];
+      const lastPoint = grouped[icao][grouped[icao].length - 1];
+      const totalPathDist = lastPoint.distance_from_dep || 0;
       const isEnvanter = props.myFleetIcaos.includes(icao.toString());
+      
       currentFlights.value[icao] = {
-        ...firstPoint, velocity: 0, baroaltitude: 0, energy: 100, ammo: isEnvanter ? 2 : 0, status: isEnvanter ? 'STANDBY' : 'ON_MISSION'
+        ...firstPoint, 
+        velocity: 0, 
+        baroaltitude: 0, 
+        energy: 100, 
+        total_mission_dist: totalPathDist,
+        trip_distance: totalPathDist,
+        ammo: isEnvanter ? 2 : 0, 
+        status: isEnvanter ? 'STANDBY' : 'ON_MISSION'
       };
       animationSteps.value[icao] = 0;
 
@@ -550,11 +555,22 @@ onMounted(async () => {
         }
         if (arrived) {
           plane.velocity = 0; plane.baroaltitude = 0; isPaused.value = true; isEmergency.value = false;
-          plane.status = 'EMERGENCY_LANDED'; plane.energy = 100; plane.ammo = 2;
+          
+          // Eğer iniş yapılan nokta uçağın ana merkeziyse (path[0]), direkt hangara (STANDBY) gir
+          const distToHome = getDistance({ lat: plane.lat, lon: plane.lon }, { lat: path[0].lat, lon: path[0].lon });
+          if (distToHome < 0.5) {
+            plane.status = 'STANDBY';
+            animationSteps.value[icao] = 0;
+            plane.distance_from_dep = 0;
+          } else {
+            plane.status = 'EMERGENCY_LANDED';
+          }
+
+          plane.energy = 100; plane.ammo = 2;
           if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
           Swal.fire({
-            title: 'ACİL İNİŞ YAPILDI',
-            text: 'İniş başarılı, ikmal tamamlandı.',
+            title: distToHome < 0.5 ? 'ÜSSE ACİL İNİŞ YAPILDI' : 'ACİL İNİŞ YAPILDI',
+            text: distToHome < 0.5 ? 'Ana merkeze güvenli iniş yapıldı.' : 'En yakın noktaya güvenli iniş yapıldı.',
             icon: 'info', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false
           });
         }
