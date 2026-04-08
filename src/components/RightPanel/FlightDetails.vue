@@ -89,17 +89,17 @@
           <div class="d-flex justify-space-between mb-1" style="font-size: 11px; font-weight: bold;">
             <span>{{ isReturningToStart ? 'DÖNÜŞ İLERLEMESİ' : 'YOLCULUK İLERLEMESİ' }}</span>
             <span v-if="isReturningToStart">
-              %{{ Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100) }}
+              %{{ Math.min(100, Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100)) }}
             </span>
             <span v-else>
-              %{{ Math.round((selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100) }}
+              %{{ Math.min(100, Math.round((selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100)) }}
             </span>
           </div>
           <v-progress-linear 
-            :model-value="isReturningToStart 
+            :model-value="Math.min(100, isReturningToStart 
               ? (selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100 
-              : (selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100"
-            color="primary" height="6" rounded />
+              : (selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100)"
+            color="primary" height="6" rounded class="no-transition-progress" />
         </div>
       </div>
 
