@@ -104,19 +104,47 @@ onUnmounted(() => {
   routeLayer.remove();
 });
 
+// Görev ilerlemesini (çizgi takibi) günceller
+const updateMissionProgress = (plane) => {
+  if (missionPathLayer.value) {
+    const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+    if (progressLine) progressLine.addLatLng([plane.lat, plane.lon]);
+  }
+};
+
+//Görev tamamlandığında çizgiyi yeşil yapar
+const setMissionSuccess = () => {
+  if (missionPathLayer.value) {
+    const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+    if (progressLine) progressLine.setStyle({ color: '#2ecc71', dashArray: null });
+  }
+};
+
+// Acil durum rotasını oluşturur
+const setEmergencyRoute = (start, end) => {
+  if (!props.map) return;
+  if (emergencyRoute.value) props.map.removeLayer(emergencyRoute.value);
+  emergencyRoute.value = L.polyline([start, end], {
+    color: 'red', weight: 4, dashArray: '10, 10', opacity: 0.8
+  }).addTo(props.map);
+  return emergencyRoute.value;
+};
+
 // Metodları ve Layer referanslarını MapEngine'e aç
 defineExpose({
   clearAllRoutes,
   resetActivePath,
   drawMissionRoute,
   drawFullRoute,
+  updateMissionProgress,
+  setMissionSuccess,
+  setEmergencyRoute,
   missionPathLayer,
   emergencyRoute,
-  activeRoutes,
-  routeLayer
+  activeRoutes
 });
 </script>
 
 <template>
-  <!-- Mantıksal bir bileşendir -->
+  <!-- Mantıksal bir bileşen olduğu için UI elementi barındırmaz -->
 </template>

@@ -1,14 +1,11 @@
 <script setup>
 /** MapLayers.vue - Harita Katman ve Sabit Nesne Yönetimi
  * Bu bileşen, haritanın temel görsel katmanlarını ve havaalanı gibi statik marker'ların yüklenmesi ve görüntülenmesini sağlar. */
-import { watch } from 'vue';
-import L from 'leaflet';
+import { watch } from 'vue'; import L from 'leaflet';
 import { getAirportIcon } from '@/utils/mapVisuals';
 
 /** PROPS: Üst bileşenden (MapEngine) gelen aktif Leaflet harita objesi */
-const props = defineProps({
-  map: Object
-});
+const props = defineProps({ map: Object });
 
 /** EMITS: Yüklenen havaalanı verilerini simülasyon mantığı için MapEngine'e aktarır */
 const emit = defineEmits(['airports-loaded']);
@@ -17,33 +14,24 @@ const emit = defineEmits(['airports-loaded']);
 watch(() => props.map, async (newMap) => {
   if (newMap) {
     // 1. TEMEL KATMAN: OpenStreetMap verilerini kullanarak dünya haritasını çizer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap',
-      noWrap: true
-    }).addTo(newMap);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', noWrap: true }).addTo(newMap);
 
     // 2. VERİ YÜKLEME: Havaalanı kütüphanesini JSON dosyasından asenkron olarak çeker
-    try {
-      const response = await fetch('/airports_library_v6.json');
-      const airData = await response.json();
-
-      // Çekilen veriyi global kullanım için MapEngine'e paslar
-      emit('airports-loaded', airData);
+  try {
+    const res = await fetch('/airports_library_v6.json'); const airData = await res.json();
+    emit('airports-loaded', airData);
 
       // 3. MARKER OLUŞTURMA: Her bir havaalanı için harita üzerinde ikon ve bilgi kutusu (popup) oluşturur
-      airData.forEach(ap => {
+    airData.forEach(ap => {
         const airportIcon = getAirportIcon(ap.id);
         L.marker([ap.lat, ap.lon], { icon: airportIcon })
           .addTo(newMap)
           .bindPopup(`<b>${ap.name}</b><br>Acil İniş Noktası`);
-      });
+    });
     } catch (error) {
       console.error("Havaalanları yüklenirken hata oluştu:", error);
     }
   }
 }, { immediate: true });
 </script>
-
-<template>
-  <!-- Mantıksal bir bileşen olduğu için arayüz (UI) elementi barındırmaz -->
-</template>
+<template><!-- Mantıksal bileşen --></template>

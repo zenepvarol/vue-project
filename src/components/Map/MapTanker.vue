@@ -1,14 +1,13 @@
 <script setup>
 /** MapTanker.vue - Yakıt İkmal Sistemi Mantığı
- * Bu bileşen, uçakların yakıt durumunu izler ve ihtiyaç halinde en yakın 
- * üsten tanker uçağı sevk ederek ikmal sürecini (yaklaşma, ikmal, dönüş) yönetir. */
+ * Bu bileşen, uçakların yakıt durumunu izler ve ihtiyaç halinde en yakın üsten tanker uçağı sevk ederek ikmal sürecini yönetir. */
 import { ref } from 'vue';
 import L from 'leaflet';
 import Swal from 'sweetalert2';
 import { getDistance, calculateNextPosition } from '@/utils/physics';
 import { getTankerIcon } from '@/utils/mapVisuals';
 
-/** PROPS: Harita objesi, uçuş verileri ve havalimanı listesi */
+// PROPS: Harita objesi, uçuş verileri ve havalimanı listesi
 const props = defineProps({
   map: Object,
   currentFlights: Object,
@@ -19,7 +18,7 @@ const props = defineProps({
 const tankerFlight = ref(null);
 const tankerMarker = ref(null);
 
-/** YARDIMCI: Belirli bir koordinata en yakın havalimanını bulur */
+// Belirli bir koordinata en yakın havalimanını bulur
 const getNearestAirport = (lat, lon) => {
   if (!props.airports || !props.airports.length) return null;
   const pos = { lat, lon };
@@ -28,7 +27,7 @@ const getNearestAirport = (lat, lon) => {
   });
 };
 
-/** ANA GÜNCELLEME DÖNGÜSÜ: MapEngine tarafından her saniye tetiklenir */
+// ANA GÜNCELLEME DÖNGÜSÜ: MapEngine tarafından her saniye tetiklenir
 const update = (activeIcao, isPaused, finalTarget) => {
   if (!activeIcao || isPaused || !props.currentFlights[activeIcao]) return;
 
@@ -58,13 +57,8 @@ const update = (activeIcao, isPaused, finalTarget) => {
         }).addTo(props.map);
 
         Swal.fire({
-          title: 'İKMAL TALEBİ',
-          text: 'Yakıt yetersiz! Tanker uçağı sevk edildi.',
-          icon: 'warning',
-          toast: true,
-          position: 'top-end',
-          timer: 3000,
-          showConfirmButton: false
+          title: 'İKMAL TALEBİ', text: 'Yakıt yetersiz! Tanker uçağı sevk edildi.', icon: 'warning',
+          toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
         });
       }
     }
@@ -94,13 +88,8 @@ const update = (activeIcao, isPaused, finalTarget) => {
         if (getDistance({ lat: tanker.lat, lon: tanker.lon }, { lat: targetPlane.lat, lon: targetPlane.lon }) < 0.5) {
           tanker.status = 'REFUELING';
           Swal.fire({
-            title: 'İKMAL BAŞLADI',
-            text: 'Depo dolduruluyor...',
-            icon: 'info',
-            toast: true,
-            position: 'top-end',
-            timer: 3000,
-            showConfirmButton: false
+            title: 'İKMAL BAŞLADI', text: 'Depo dolduruluyor...', icon: 'info',
+            toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
           });
         }
       }
@@ -115,13 +104,8 @@ const update = (activeIcao, isPaused, finalTarget) => {
         if (targetPlane.energy >= 100) {
           tanker.status = 'RETURNING';
           Swal.fire({
-            title: 'İKMAL TAMAMLANDI',
-            text: 'Tanker üsse geri dönüyor.',
-            icon: 'success',
-            toast: true,
-            position: 'top-end',
-            timer: 3000,
-            showConfirmButton: false
+            title: 'İKMAL TAMAMLANDI', text: 'Tanker üsse geri dönüyor.', icon: 'success',
+            toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
           });
         }
       }
@@ -144,7 +128,7 @@ const update = (activeIcao, isPaused, finalTarget) => {
   }
 };
 
-/** EXPOSE: Update metodunu MapEngine'den erişilebilir kılar */
+// EXPOSE: Update metodunu MapEngine'den erişilebilir kılar
 defineExpose({ update });
 </script>
 

@@ -1,8 +1,7 @@
 <script setup>
 /** MapPlanes.vue - Uçak Marker Yönetimi
  * Haritadaki tüm uçakların ikonlarını (marker) oluşturur, koordinatlarını günceller ve tıklandığında uçağa odaklanılmasını sağlar. */
-import { watch, onUnmounted } from 'vue';
-import L from 'leaflet';
+import { watch, onUnmounted } from 'vue'; import L from 'leaflet';
 import { getPlaneIcon } from '@/utils/mapVisuals';
 
 const props = defineProps({
@@ -15,7 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['marker-click']);
 const markers = {}; // Harita üzerindeki Leaflet marker objelerini tutan sözlük
 
-/** WATCHER: Uçuş verileri (filitrelenmiş veya ham) değiştikçe marker'ları yönetir */
+/** WATCHER: Uçuş verileri değiştikçe marker'ları yönetir */
 watch(() => props.currentFlights, (flights) => {
   if (!props.map || !flights) return;
 
@@ -41,8 +40,7 @@ watch(() => props.currentFlights, (flights) => {
     }
     // 2- Mevcut Marker'ı Güncelleme: (Normal güncellemeler için, slideTo slideTo dışı durumlar)
     else {
-      const marker = markers[icao];
-      // Eğer uçağın verisi MapEngine'deki interval ile değişmişse marker'ı o konuma çek
+      const marker = markers[icao]; // Eğer uçağın verisi MapEngine'deki interval ile değişmişse marker'ı o konuma çek
     }
   });
 }, { deep: true });
