@@ -1,5 +1,11 @@
 <template>
   <div id="map"></div>
+  <MapLayers :map="mapObject" @airports-loaded="data => airports = data" />
+  <MapPlanes ref="mapPlanes" :map="mapObject" :currentFlights="currentFlights" :activeIcao="activeIcao"
+    :myFleetIcaos="myFleetIcaos" @marker-click="focusFlight" />
+  <MapRoutes ref="mapRoutes" :map="mapObject" :currentFlights="currentFlights" :activeIcao="activeIcao"
+    :flightPaths="flightPaths" :animationSteps="animationSteps" />
+  <MapTanker ref="mapTanker" :map="mapObject" :currentFlights="currentFlights" :airports="airports" />
 </template>
 
 <script setup>
@@ -9,8 +15,12 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
 import Swal from 'sweetalert2';
-import { getDistance, calculateNextPosition } from '../utils/physics';
-import { triggerExplosion, getPlaneIcon, getAirportIcon, getTankerIcon } from '../utils/mapVisuals';
+import { getDistance, calculateNextPosition } from '@/utils/physics';
+import { triggerExplosion, getPlaneIcon } from '@/utils/mapVisuals';
+import MapTanker from './MapTanker.vue';
+import MapLayers from './MapLayers.vue';
+import MapPlanes from './MapPlanes.vue';
+import MapRoutes from './MapRoutes.vue';
 
 const props = defineProps({ myFleetIcaos: Array, selectedFlight: Object });
 const currentFlights = defineModel('currentFlights'), activeIcao = defineModel('activeIcao'), isPaused = defineModel('isPaused');
@@ -19,10 +29,9 @@ const isReturningToStart = defineModel('isReturningToStart'), isEmergencySimulat
 const manualLat = defineModel('manualLat'), manualLon = defineModel('manualLon'), manualAirportId = defineModel('manualAirportId');
 const destinationAirportId = defineModel('destinationAirportId'), destLat = defineModel('destLat'), destLon = defineModel('destLon'), activeFailure = defineModel('activeFailure');
 
-const markers = {}, flightPaths = ref({}), emergencyRoute = ref(null), activeRoutes = {};
-let map = null; const routeLayer = L.layerGroup(), manualTarget = ref(null);
-const isManualRouting = ref(false), missionPathLayer = ref(null), tankerFlight = ref(null), tankerMarker = ref(null);
-
+const flightPaths = ref({}), manualTarget = ref(null);
+let map = null; const isManualRouting = ref(false), mapTanker = ref(null), mapPlanes = ref(null), mapRoutes = ref(null);
+const mapObject = ref(null);
 const failureTypes = {
   LOW_BATTERY: { label: 'DÜŞÜK YAKIT', color: '#e74c3c' },
   LINK_LOSS: { label: 'SİNYAL KAYBI', color: '#f39c12' }
@@ -30,7 +39,7 @@ const failureTypes = {
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
-  const plane = currentFlights.value[icao], marker = markers[icao];
+  const plane = currentFlights.value[icao], marker = mapPlanes.value?.markers[icao];
   if (!plane || !marker) return false;
 
   const { nextLat, nextLon, heading, hasArrived } = calculateNextPosition(
@@ -52,8 +61,8 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   }
 
   marker.setRotationAngle(heading - 45);
-  if (activeRoutes[icao] && !isEmergency.value) {
-    activeRoutes[icao].addLatLng(newPos);
+  if (mapRoutes.value?.activeRoutes[icao] && !isEmergency.value) {
+    mapRoutes.value.activeRoutes[icao].addLatLng(newPos);
   }
   return false;
 };
@@ -84,34 +93,12 @@ const updatePlanePhysics = (plane, icao, currentPos, targetPos, cruiseSpeed = 22
 };
 
 const resetActivePath = (icao) => {
-  if (activeRoutes[icao]) {
-    routeLayer.removeLayer(activeRoutes[icao]);
-    const currentPos = [currentFlights.value[icao].lat, currentFlights.value[icao].lon];
-    activeRoutes[icao] = L.polyline([currentPos], { color: '#9381ff', weight: 4, opacity: 1 }).addTo(routeLayer);
-  }
+  mapRoutes.value?.resetActivePath(icao);
 };
 
 // Aktif bir görevi başlattığımızda veya güncellediğimizde rotayı çizer
 const drawMissionRoute = (plane, targetPos) => {
-  if (missionPathLayer.value) map.removeLayer(missionPathLayer.value);
-
-  const startPos = [plane.lat, plane.lon];
-  const targetCoord = [targetPos.lat, targetPos.lon];
-
-  const previewLine = L.polyline([startPos, targetCoord], {
-    color: '#e74c3c', weight: 4, dashArray: '10, 5', opacity: 0.7
-  });
-
-  const targetCircle = L.circleMarker(targetCoord, {
-    radius: 8, color: '#e74c3c', fillOpacity: 1, weight: 2
-  }).bindPopup('<b>BOMBALAMA HEDEFİ</b>');
-
-  const progressLine = L.polyline([startPos], {
-    color: '#e74c3c', weight: 4, opacity: 1
-  });
-
-  missionPathLayer.value = L.layerGroup([previewLine, targetCircle, progressLine]).addTo(map);
-  return progressLine;
+  return mapRoutes.value?.drawMissionRoute(plane, targetPos);
 };
 
 // Uçağın o anki konumuna en yakın müttefik havalimanını (üs noktasını) bulur
@@ -153,13 +140,13 @@ const returnToStart = () => {
   isPaused.value = false;
   isManualRouting.value = false;
 
-  if (missionPathLayer.value && map.hasLayer(missionPathLayer.value)) {
-    map.removeLayer(missionPathLayer.value);
-    missionPathLayer.value = null;
+  if (mapRoutes.value?.missionPathLayer && map.hasLayer(mapRoutes.value.missionPathLayer)) {
+    map.removeLayer(mapRoutes.value.missionPathLayer);
+    mapRoutes.value.missionPathLayer = null;
   }
-  if (emergencyRoute.value) {
-    map.removeLayer(emergencyRoute.value);
-    emergencyRoute.value = null;
+  if (mapRoutes.value?.emergencyRoute) {
+    map.removeLayer(mapRoutes.value.emergencyRoute);
+    mapRoutes.value.emergencyRoute = null;
   }
 };
 
@@ -185,29 +172,11 @@ const togglePause = () => {
 };
 
 const clearAllRoutes = () => {
-  routeLayer.clearLayers();
-  if (emergencyRoute.value) {
-    map.removeLayer(emergencyRoute.value);
-    emergencyRoute.value = null;
-  }
+  mapRoutes.value?.clearAllRoutes();
 };
 
 const drawFullRoute = (icao) => {
-  clearAllRoutes();
-  const path = flightPaths.value[icao];
-  const allPoints = path.map(p => [p.lat, p.lon]);
-  const currentStep = animationSteps.value[icao];
-  const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 });
-  const pointsSoFar = allPoints.slice(0, currentStep + 1);
-  activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 });
-  const startCircle = L.circleMarker(allPoints[0], { radius: 6, color: '#2ecc71', fillOpacity: 1, weight: 2 });
-  const endCircle = L.circleMarker(allPoints[allPoints.length - 1], { radius: 6, color: '#e74c3c', fillOpacity: 1, weight: 2 });
-
-  staticPath.addTo(routeLayer);
-  activeRoutes[icao].addTo(routeLayer);
-  startCircle.addTo(routeLayer);
-  endCircle.addTo(routeLayer);
-  routeLayer.addTo(map);
+  mapRoutes.value?.drawFullRoute(icao);
 };
 
 const setManualTarget = () => {
@@ -253,8 +222,8 @@ const startEmergencyLanding = () => {
     const start = [props.selectedFlight.lat, props.selectedFlight.lon];
     const end = [nearestAirport.value.lat, nearestAirport.value.lon];
 
-    if (emergencyRoute.value) map.removeLayer(emergencyRoute.value);
-    emergencyRoute.value = L.polyline([start, end], {
+    if (mapRoutes.value?.emergencyRoute) map.removeLayer(mapRoutes.value.emergencyRoute);
+    mapRoutes.value.emergencyRoute = L.polyline([start, end], {
       color: 'red', weight: 4, dashArray: '10, 10', opacity: 0.8
     }).addTo(map);
     map.fitBounds(L.latLngBounds([start, end]), { padding: [50, 50], maxZoom: 8 });
@@ -366,21 +335,9 @@ onMounted(async () => {
   // Dünya sınırlarını sabitleyip temel haritayı çizer
   const worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
   map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
-  routeLayer.addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap', noWrap: true
-  }).addTo(map);
+  mapObject.value = map;
 
   try {
-    const airResponse = await fetch('/airports_library_v6.json');
-    const airData = await airResponse.json();
-    airports.value = airData;
-
-    airData.forEach(ap => {
-      const airportIcon = getAirportIcon(ap.id);
-      L.marker([ap.lat, ap.lon], { icon: airportIcon }).addTo(map).bindPopup(`<b>${ap.name}</b><br>Acil İniş Noktası`);
-    });
-
     const response = await fetch('/ucus_final_v7.json');
     const data = await response.json();
     const grouped = data.reduce((acc, row) => {
@@ -397,33 +354,16 @@ onMounted(async () => {
       const isEnvanter = props.myFleetIcaos.includes(icao.toString());
       
       currentFlights.value[icao] = {
-        ...firstPoint, 
-        velocity: 0, 
-        baroaltitude: 0, 
-        energy: 100, 
+        ...firstPoint,
+        velocity: 0,
+        baroaltitude: 0,
+        energy: 100,
         total_mission_dist: totalPathDist,
         trip_distance: totalPathDist,
-        ammo: isEnvanter ? 2 : 0, 
+        ammo: isEnvanter ? 2 : 0,
         status: isEnvanter ? 'STANDBY' : 'ON_MISSION'
       };
       animationSteps.value[icao] = 0;
-
-      if (firstPoint.lat && firstPoint.lon) {
-        const marker = L.marker([firstPoint.lat, firstPoint.lon], {
-          icon: getPlaneIcon(isEnvanter), rotationAngle: (firstPoint.heading || 0) - 45
-        }).addTo(map);
-
-        marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-          if (activeIcao.value !== icao) {
-            activeIcao.value = icao;
-            isPaused.value = true;
-            drawFullRoute(icao);
-            recenterMap();
-          }
-        });
-        markers[icao] = marker;
-      }
     });
 
     // Simülasyon döngüsü: Uçakların hareketini, hızlanmasını ve görev kontrollerini periyodik denetler
@@ -452,86 +392,10 @@ onMounted(async () => {
       };
 
       const finalTarget = getActivePlaneTarget(); // Uçağın o an gitmek istediği asıl hedefi bulur
-      if (finalTarget) {
-        const distToFinal = getDistance(currentPos, finalTarget); // Mevcut konumdan hedefe olan mesafe
-
-        /** Yakıtın yarısı tükendiyse, mevcut yakıt hedefe ulaşmaya yetmiyorsa (TB3 5700km menzil baz), bir tanker uçak zaten yolda değilse */
-        if (plane.energy < 50 && plane.energy < (distToFinal / 57) && !tankerFlight.value) {
-          const tankerBase = getNearestAirport(plane.lat, plane.lon); // Tankerin kalkacağı en yakın üs
-          if (tankerBase) {
-            // Tanker objesi ve verileri başlatılır
-            tankerFlight.value = {
-              targetIcao: icao, // Hangi uçağa ikmal yapılacağı
-              lat: tankerBase.lat, lon: tankerBase.lon, heading: 0,
-              velocity: 350, energy: 100, startBase: tankerBase, status: 'APPROACHING'
-            };
-            tankerMarker.value = L.marker([tankerBase.lat, tankerBase.lon], { icon: getTankerIcon(), zIndexOffset: 1000 }).addTo(map); // tanker marker - turuncu
-
-            Swal.fire({
-              title: 'İKMAL TALEBİ', text: 'Yakıt yetersiz! Tanker uçağı sevk edildi.', icon: 'warning',
-              toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
-            });
-          }
-        }
-      }
-
-      // Tanker havadaysa her animasyon adımında çalışır 
-      if (tankerFlight.value) {
-        const tanker = tankerFlight.value; // Tanker verileri
-        const tMarker = tankerMarker.value; // Tankerin haritadaki simgesi
-        const targetPlane = currentFlights.value[tanker.targetIcao]; // Tanker tarafından takip edilen uçak
-
-        if (!targetPlane) {
-          tanker.status = 'RETURNING';
-        }
-        tanker.energy = Math.max(0, tanker.energy - 0.0008); // Tanker yakıtı uçaklardan daha yavaş azalıyor
-
-        // Tanker 1. Adım: Tanker uçağa doğru yüksek hızla ilerliyor
-        if (tanker.status === 'APPROACHING') {
-          // calculateNextPosition ile uçağın her an güncellenen konumunu takip eder (hız yaklaşık 3 kat hızlı)
-          const { nextLat, nextLon, heading } = calculateNextPosition(tanker.lat, tanker.lon, targetPlane.lat, targetPlane.lon, 0.4);
-          tanker.lat = nextLat; tanker.lon = nextLon; tanker.heading = heading;
-          tMarker.setLatLng([nextLat, nextLon]);
-          tMarker.setRotationAngle(heading - 45); // Tanker, uçağa doğru bakarak uçar
-
-          // ikisi arası mesafe 0.5km altına düşerse ikmal
-          if (getDistance({ lat: tanker.lat, lon: tanker.lon }, { lat: targetPlane.lat, lon: targetPlane.lon }) < 0.5) {
-            tanker.status = 'REFUELING';
-            Swal.fire({
-              title: 'İKMAL BAŞLADI', text: 'Depo dolduruluyor...', icon: 'info',
-              toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
-            });
-          }
-        }
-        // Tanker 2. Adım: Depo fulllenene kadar beraber uçuyorlar
-        else if (tanker.status === 'REFUELING') {
-          tanker.lat = targetPlane.lat; tanker.lon = targetPlane.lon; // Tanker konumu her animasyon adımında hedef uçağın konumuyla eşitlenir
-          tMarker.setLatLng([targetPlane.lat, targetPlane.lon]);
-          tMarker.setRotationAngle((targetPlane.heading || 0) - 45); // Uçakla aynı açıda durur
-
-          targetPlane.energy = Math.min(100, targetPlane.energy + 0.02); // saniyede %2 artış
-          if (targetPlane.energy >= 100) {
-            tanker.status = 'RETURNING';
-            Swal.fire({
-              title: 'İKMAL TAMAMLANDI', text: 'Tanker üsse geri dönüyor.', icon: 'success',
-              toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
-            });
-          }
-        }
-        // Tanker 3. Adım: İkmal bitti, tanker kalktığı üsse geri dönüyor
-        else if (tanker.status === 'RETURNING') {
-          // calculateNextPosition ile tanker ana merkezine (startBase) yönlenir
-          const { nextLat, nextLon, heading, hasArrived } = calculateNextPosition(tanker.lat, tanker.lon, tanker.startBase.lat, tanker.startBase.lon, 0.4);
-          tanker.lat = nextLat; tanker.lon = nextLon; tanker.heading = heading;
-          tMarker.setLatLng([nextLat, nextLon]);
-          tMarker.setRotationAngle(heading - 45);
-
-          if (hasArrived) {
-            map.removeLayer(tMarker); // marker silinir
-            tankerFlight.value = null;
-            tankerMarker.value = null;
-          }
-        }
+      
+      // Tanker mantığını yeni bileşen üzerinden yönet
+      if (mapTanker.value) {
+        mapTanker.value.update(icao, isPaused.value, finalTarget);
       }
 
       // 1. Durum: Acil durum aktif (En yakın havalimanına acil iniş)
@@ -567,7 +431,7 @@ onMounted(async () => {
           }
 
           plane.energy = 100; plane.ammo = 2;
-          if (emergencyRoute.value) { map.removeLayer(emergencyRoute.value); emergencyRoute.value = null; }
+          if (mapRoutes.value?.emergencyRoute) { map.removeLayer(mapRoutes.value.emergencyRoute); mapRoutes.value.emergencyRoute = null; }
           Swal.fire({
             title: distToHome < 0.5 ? 'ÜSSE ACİL İNİŞ YAPILDI' : 'ACİL İNİŞ YAPILDI',
             text: distToHome < 0.5 ? 'Ana merkeze güvenli iniş yapıldı.' : 'En yakın noktaya güvenli iniş yapıldı.',
@@ -583,8 +447,8 @@ onMounted(async () => {
         const keepFlightEnv = plane.status === 'GOING_TO_DEST' || plane.status === 'MISSION_COMPLETE';
         const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos, 220, dynamicCruiseAlt, keepFlightEnv);
 
-        if (missionPathLayer.value) {
-          const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+        if (mapRoutes.value?.missionPathLayer) {
+          const progressLine = mapRoutes.value.missionPathLayer.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
           if (progressLine) progressLine.addLatLng([plane.lat, plane.lon]);
         }
         map.panTo([plane.lat, plane.lon]);
@@ -593,8 +457,8 @@ onMounted(async () => {
         if (plane.status === 'GOING_TO_DEP') {
           if (arrived || distToTarget < 0.1) {
             plane.status = 'GOING_TO_DEST';
-            if (missionPathLayer.value) {
-              const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+            if (mapRoutes.value?.missionPathLayer) {
+              const progressLine = mapRoutes.value.missionPathLayer.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
               if (progressLine) progressLine.setStyle({ color: '#2ecc71', dashArray: null });
             }
           }
@@ -642,8 +506,8 @@ onMounted(async () => {
         // Manuel rotada da ortak fizik ve yumuşak alçalma/yükselme mantığını kullan
         const { arrived, distToTarget: remainingDist } = updatePlanePhysics(plane, icao, currentPos, targetPos, 160, dynamicManualAlt);
 
-        if (missionPathLayer.value) {
-          const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+        if (mapRoutes.value?.missionPathLayer) {
+          const progressLine = mapRoutes.value.missionPathLayer.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
           if (progressLine) progressLine.addLatLng([plane.lat, plane.lon]);
         }
 
@@ -652,7 +516,7 @@ onMounted(async () => {
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
           plane.status = 'ARRIVED';
           plane.energy = 100; plane.ammo = 2;
-          if (missionPathLayer.value) { map.removeLayer(missionPathLayer.value); missionPathLayer.value = null; }
+          if (mapRoutes.value?.missionPathLayer) { map.removeLayer(mapRoutes.value.missionPathLayer); mapRoutes.value.missionPathLayer = null; }
           Swal.fire({
             title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota ve ikmal tamamlandı.`,
             icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true

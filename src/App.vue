@@ -3,14 +3,14 @@
 
     <div class="app-container" :class="{ 'dark-mode-active': darkMode }">
 
-      <LeftPanel @focus-flight="(f) => mapRef?.focusFlight(f)" />
+      <FleetPanel @focus-flight="(f) => mapRef?.focusFlight(f)" />
 
       <v-btn class="sidebar-toggle" :class="{ open: sidebarOpen }" @click.stop="toggleSidebar" color="surface"
         elevation="4" rounded="e-lg" width="30" height="50">
         <v-icon :icon="sidebarOpen ? 'mdi-chevron-left' : 'mdi-chevron-right'" />
       </v-btn>
 
-      <MapComponent ref="mapRef" v-model:currentFlights="currentFlights" v-model:activeIcao="activeIcao"
+      <MapEngine ref="mapRef" v-model:currentFlights="currentFlights" v-model:activeIcao="activeIcao"
         v-model:isPaused="isPaused" v-model:animationSteps="animationSteps" v-model:airports="airports"
         v-model:isEmergency="isEmergency" v-model:isReturningToStart="isReturningToStart"
         v-model:isEmergencySimulated="isEmergencySimulated" v-model:emergencyCountdown="emergencyCountdown"
@@ -18,7 +18,7 @@
         v-model:destinationAirportId="destinationAirportId" v-model:destLat="destLat" v-model:destLon="destLon"
         v-model:activeFailure="activeFailure" :myFleetIcaos="myFleetIcaos" :selectedFlight="selectedFlight" />
 
-      <RightPanel v-model:activeIcao="activeIcao" v-model:destinationAirportId="destinationAirportId"
+      <MissionPanel v-model:activeIcao="activeIcao" v-model:destinationAirportId="destinationAirportId"
         v-model:destLat="destLat" v-model:destLon="destLon" v-model:manualAirportId="manualAirportId"
         v-model:manualLat="manualLat" v-model:manualLon="manualLon" :selectedFlight="selectedFlight"
         :airports="airports" :activeFailure="activeFailure" :isEmergencySimulated="isEmergencySimulated"
@@ -37,9 +37,9 @@
 import { ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useFlightStore } from '@/stores/flightStore';
-import LeftPanel from '@/components/LeftPanel.vue';
-import RightPanel from '@/components/RightPanel.vue';
-import MapComponent from '@/components/MapComponent.vue';
+import FleetPanel from '@/components/Fleet/FleetPanel.vue';
+import MissionPanel from '@/components/Mission/MissionPanel.vue';
+import MapEngine from '@/components/Map/MapEngine.vue';
 import './assets/flight-style.css';
 
 const store = useFlightStore();

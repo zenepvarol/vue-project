@@ -2,11 +2,11 @@
   <!-- v-sheet: Sağ panel konteyneri. pt-16 ile içeriği üstten 64px aşağı iter. -->
   <v-sheet component="aside" class="sidebar right pt-16" style="overflow-y: auto; max-height: 100vh;">
     
-    <TargetSelection v-if="!selectedFlight" v-model:destinationAirportId="destinationAirportId" v-model:destLat="destLat"
+    <MissionTargeting v-if="!selectedFlight" v-model:destinationAirportId="destinationAirportId" v-model:destLat="destLat"
       v-model:destLon="destLon" :airports="airports" @assign-mission="$emit('assign-mission')" />
 
     <!-- Uçuş Detayları: Haritadan araç seçilince aktif olur -->
-    <FlightDetails v-else v-model:activeIcao="activeIcao" v-model:manualAirportId="manualAirportId"
+    <MissionDetails v-else v-model:activeIcao="activeIcao" v-model:manualAirportId="manualAirportId"
       v-model:manualLat="manualLat" v-model:manualLon="manualLon" :selectedFlight="selectedFlight" :airports="airports"
       :activeFailure="activeFailure" :isEmergencySimulated="isEmergencySimulated" :isEmergency="isEmergency"
       :isReturningToStart="isReturningToStart" :isPaused="isPaused" :myFleetIcaos="myFleetIcaos"
@@ -18,10 +18,10 @@
 </template>
 
 <script setup>
-/**RightPanel.vue - Sağ Panel Ana Bileşeni
+/** MissionPanel.vue - Sağ Panel Ana Bileşeni
  * Hedef Seçimi ve Uçuş Detayları bileşenlerini yönetir. */
-import TargetSelection from './RightPanel/TargetSelection.vue';
-import FlightDetails from './RightPanel/FlightDetails.vue';
+import MissionTargeting from './MissionTargeting.vue';
+import MissionDetails from './MissionDetails.vue';
 
 // PROPS: Üst bileşenden gelen veriler
 defineProps({
