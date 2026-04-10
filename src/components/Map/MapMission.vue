@@ -1,6 +1,6 @@
 <script setup>
-import { defineModel } from 'vue'; import Swal from 'sweetalert2';
 import { getDistance } from '@/utils/physics'; import { triggerExplosion as visualExplosion } from '@/utils/mapVisuals';
+import { FLIGHT_STATUS } from '@/constants/flightConstants';
 
 const props = defineProps({
   currentFlights: Object,
@@ -34,7 +34,7 @@ const assignMission = () => {
   }
 
   const availableIcaos = props.myFleetIcaos.filter(icao =>
-    props.currentFlights[icao] && props.currentFlights[icao].status === 'STANDBY'
+    props.currentFlights[icao] && props.currentFlights[icao].status === FLIGHT_STATUS.STANDBY
   );
   
   if (availableIcaos.length === 0) {
@@ -59,7 +59,7 @@ const assignMission = () => {
   plane.trip_distance = minDistance;
   plane.total_mission_dist = minDistance;
   plane.distance_from_dep = 0;
-  plane.status = 'GOING_TO_DEST';
+  plane.status = FLIGHT_STATUS.GOING_TO_DEST;
 
   props.mapRoutes?.drawMissionRoute(plane, targetPos); // Görev rotasını çizimi
 

@@ -31,6 +31,27 @@
     :map="mapObject"
     :mapRoutes="mapRoutes"
   />
+  <MapManualControl
+    ref="mapManualControl"
+    :airports="airports"
+    :currentFlights="currentFlights"
+    :mapRoutes="mapRoutes"
+    v-model:activeIcao="activeIcao"
+    v-model:manualLat="manualLat"
+    v-model:manualLon="manualLon"
+    v-model:manualAirportId="manualAirportId"
+    v-model:isManualRouting="isManualRouting"
+    v-model:manualTarget="manualTarget"
+    v-model:isPaused="isPaused"
+  />
+  <MapNavigator
+    ref="mapNavigator"
+    :map="mapObject"
+    :mapRoutes="mapRoutes"
+    :selectedFlight="selectedFlight"
+    v-model:activeIcao="activeIcao"
+    v-model:isPaused="isPaused"
+  />
 </template>
 
 <script setup>
@@ -42,12 +63,15 @@ import 'leaflet.marker.slideto';
 import Swal from 'sweetalert2';
 import { getDistance, calculateNextPosition } from '@/utils/physics';
 import { getPlaneIcon } from '@/utils/mapVisuals';
+import { FLIGHT_STATUS, SIM_SETTINGS } from '@/constants/flightConstants';
 import MapTanker from './MapTanker.vue';
 import MapLayers from './MapLayers.vue';
 import MapPlanes from './MapPlanes.vue';
 import MapRoutes from './MapRoutes.vue';
 import MapEmergency from './MapEmergency.vue';
 import MapMission from './MapMission.vue';
+import MapManualControl from './MapManualControl.vue';
+import MapNavigator from './MapNavigator.vue';
 
 const props = defineProps({ myFleetIcaos: Array, selectedFlight: Object });
 const currentFlights = defineModel('currentFlights'), activeIcao = defineModel('activeIcao'), isPaused = defineModel('isPaused');
@@ -57,9 +81,8 @@ const manualLat = defineModel('manualLat'), manualLon = defineModel('manualLon')
 const destinationAirportId = defineModel('destinationAirportId'), destLat = defineModel('destLat'), destLon = defineModel('destLon'), activeFailure = defineModel('activeFailure');
 
 const flightPaths = ref({}), manualTarget = ref(null);
-let map = null; const isManualRouting = ref(false), mapTanker = ref(null), mapPlanes = ref(null), mapRoutes = ref(null), mapEmergency = ref(null), mapMission = ref(null);
+let map = null; const isManualRouting = ref(false), mapTanker = ref(null), mapPlanes = ref(null), mapRoutes = ref(null), mapEmergency = ref(null), mapMission = ref(null), mapManualControl = ref(null), mapNavigator = ref(null);
 const mapObject = ref(null);
-
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
@@ -148,7 +171,7 @@ const returnToStart = () => {
   const plane = currentFlights.value[icao];
 
   if (plane && props.myFleetIcaos.includes(String(icao))) {
-    plane.status = 'RETURNING';
+    plane.status = FLIGHT_STATUS.RETURNING;
   }
 
   const path = flightPaths.value[icao];
@@ -163,17 +186,11 @@ const returnToStart = () => {
   isEmergency.value = false;
   isPaused.value = false;
   isManualRouting.value = false;
-
   mapRoutes.value?.clearAllRoutes();
 };
 
-const zoomToPlane = (lat, lon) => {
-  if (lat && lon && map) map.setView([lat, lon], 8, { animate: true, duration: 1 });
-};
-
-const recenterMap = () => {
-  if (props.selectedFlight) zoomToPlane(props.selectedFlight.lat, props.selectedFlight.lon);
-};
+const zoomToPlane = (lat, lon) => mapNavigator.value?.zoomToPlane(lat, lon);
+const recenterMap = () => mapNavigator.value?.recenterMap();
 
 const togglePause = () => {
   if (!activeIcao.value) return;
@@ -182,8 +199,8 @@ const togglePause = () => {
     isPaused.value = false;
     isReturningToStart.value = false;
     isEmergency.value = false;
-    if (plane && (plane.status === 'STANDBY' || plane.status === 'COMPLETED' || plane.status === 'ARRIVED' || plane.status === 'EMERGENCY_LANDED')) {
-      plane.status = 'ACTIVE';
+    if (plane && (plane.status === FLIGHT_STATUS.STANDBY || plane.status === FLIGHT_STATUS.COMPLETED || plane.status === FLIGHT_STATUS.ARRIVED || plane.status === FLIGHT_STATUS.EMERGENCY_LANDED)) {
+      plane.status = FLIGHT_STATUS.ACTIVE;
     }
   }
 };
@@ -196,56 +213,11 @@ const drawFullRoute = (icao) => {
   mapRoutes.value?.drawFullRoute(icao);
 };
 
-const setManualTarget = () => {
-  if (!activeIcao.value) return;
-  let target = null;
-  const targetAp = airports.value.find(ap => ap.id.toLowerCase() === manualAirportId.value.toLowerCase());
-
-  if (manualAirportId.value === 'MANUAL_COORD' && manualLat.value && manualLon.value) {
-    target = { lat: parseFloat(manualLat.value), lon: parseFloat(manualLon.value) };
-  } else if (targetAp) {
-    target = { lat: targetAp.lat, lon: targetAp.lon };
-  }
-
-  if (target) {
-    const plane = currentFlights.value[activeIcao.value];
-    const dist = getDistance({ lat: plane.lat, lon: plane.lon }, target);
-
-    plane.trip_distance = dist;
-    plane.total_mission_dist = dist; // Orijinal görev mesafesini korumak için
-    plane.distance_from_dep = 0;
-    plane.total_manual_dist = dist;
-    plane.status = 'ACTIVE'; // Operasyon güncellendiğinde durumu anında 'GÖREVDE' yapar
-    manualTarget.value = target;
-    isManualRouting.value = true;
-    isPaused.value = false;
-
-    mapRoutes.value?.drawMissionRoute(plane, target); // Manuel güncellenen rotanın çizimi
-
-    Swal.fire({
-      icon: 'success', title: 'Rota Hazır', text: `Mesafe: ${Math.round(dist)} km`,
-      timer: 1500, toast: true, position: 'top-end', showConfirmButton: false
-    });
-  }
-};
-
+const setManualTarget = () => mapManualControl.value?.setManualTarget();
 const startEmergencyLanding = () => mapEmergency.value?.startEmergencyLanding();
-
 const triggerSimulatedFailure = () => mapEmergency.value?.triggerSimulatedFailure();
-
 const handleManualEmergency = () => mapEmergency.value?.handleManualEmergency();
-
-const focusFlight = (f) => {
-  if (f.lat && f.lon) {
-    if (activeIcao.value !== f.icao24) {
-      activeIcao.value = f.icao24;
-      isPaused.value = true;
-      drawFullRoute(f.icao24);
-    }
-    zoomToPlane(f.lat, f.lon);
-  }
-};
-
+const focusFlight = (f) => mapNavigator.value?.focusFlight(f);
 const assignMission = () => mapMission.value?.assignMission();
 const triggerExplosion = (lat, lon) => mapMission.value?.triggerExplosion(lat, lon);
 
@@ -280,7 +252,7 @@ onMounted(async () => {
         total_mission_dist: totalPathDist,
         trip_distance: totalPathDist,
         ammo: isEnvanter ? 2 : 0,
-        status: isEnvanter ? 'STANDBY' : 'ON_MISSION'
+        status: isEnvanter ? FLIGHT_STATUS.STANDBY : FLIGHT_STATUS.ON_MISSION
       };
       animationSteps.value[icao] = 0;
     });
@@ -295,15 +267,15 @@ onMounted(async () => {
       const currentPos = { lat: plane.lat, lon: plane.lon };
 
       // TB3 gerçekçiliği için yakıt tüketimi (100% = 5700 km menzil) (0.01 di guncellendi)
-      if (plane.energy > 0 && plane.velocity > 0) plane.energy = Math.max(0, plane.energy - 0.0025);
-      if (plane.energy < 20 && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) mapEmergency.value?.triggerSimulatedFailure();
+      if (plane.energy > 0 && plane.velocity > 0) plane.energy = Math.max(0, plane.energy - SIM_SETTINGS.FUEL_CONSUMPTION_RATE);
+      if (plane.energy < SIM_SETTINGS.LOW_FUEL_THRESHOLD && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) mapEmergency.value?.triggerSimulatedFailure();
 
       /** Uçağın o anki uçuş moduna göre (Acil iniş, görev, manuel rota) gitmek istediği asıl hedef noktasını tespit eder. 
        * Bu hedef, yakıtın yetip yetmeyeceğini hesaplamak için kullanılır.*/
       const getActivePlaneTarget = () => {
         if (isEmergency.value && nearestAirport.value) return nearestAirport.value; // Acil iniş durumunda hedef: en yakın havalimanı
-        if (plane.status === 'GOING_TO_DEP') return plane.missionDep; // Görev kalkış noktasına gidiliyorsa hedef odur
-        if (plane.status === 'GOING_TO_DEST' || plane.status === 'MISSION_COMPLETE') return plane.status === 'GOING_TO_DEST' ? plane.missionDest : { lat: path[0].lat, lon: path[0].lon }; // üsse dönüş hedefleri
+        if (plane.status === FLIGHT_STATUS.GOING_TO_DEP) return plane.missionDep; // Görev kalkış noktasına gidiliyorsa hedef odur
+        if (plane.status === FLIGHT_STATUS.GOING_TO_DEST || plane.status === FLIGHT_STATUS.MISSION_COMPLETE) return plane.status === FLIGHT_STATUS.GOING_TO_DEST ? plane.missionDest : { lat: path[0].lat, lon: path[0].lon }; // üsse dönüş hedefleri
         if (isReturningToStart.value) return { lat: path[0].lat, lon: path[0].lon }; // Manuel üsse dön butonuyla başlangıç hedefleri
         if (isManualRouting.value && manualTarget.value) return manualTarget.value; // Manuel tıklanan hedefler
         if (path && path.length > 0) return path[path.length - 1]; // Sabit rotalar için son rota noktası
@@ -342,11 +314,11 @@ onMounted(async () => {
           // Eğer iniş yapılan nokta uçağın ana merkeziyse (path[0]), direkt hangara (STANDBY) gir
           const distToHome = getDistance({ lat: plane.lat, lon: plane.lon }, { lat: path[0].lat, lon: path[0].lon });
           if (distToHome < 0.5) {
-            plane.status = 'STANDBY';
+            plane.status = FLIGHT_STATUS.STANDBY;
             animationSteps.value[icao] = 0;
             plane.distance_from_dep = 0;
           } else {
-            plane.status = 'EMERGENCY_LANDED';
+            plane.status = FLIGHT_STATUS.EMERGENCY_LANDED;
           }
 
           plane.energy = 100; plane.ammo = 2;
@@ -363,24 +335,24 @@ onMounted(async () => {
         const dynamicCruiseAlt = Math.min(10000, Math.max(1000, (plane.trip_distance || 100) * 100));  // Yolun uzunluğuna göre rakım belirleme
 
         // Hedefe yaklaşıldığında veya bekleme modundayken rakım ve hız korunur
-        const keepFlightEnv = plane.status === 'GOING_TO_DEST' || plane.status === 'MISSION_COMPLETE';
-        const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos, 220, dynamicCruiseAlt, keepFlightEnv);
+        const keepFlightEnv = plane.status === FLIGHT_STATUS.GOING_TO_DEST || plane.status === FLIGHT_STATUS.MISSION_COMPLETE;
+        const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos, SIM_SETTINGS.DEFAULT_CRUISE_SPEED, dynamicCruiseAlt, keepFlightEnv);
 
         mapRoutes.value?.updateMissionProgress(plane);
         map.panTo([plane.lat, plane.lon]);
 
         // Hedefe gidiş kontrolü
-        if (plane.status === 'GOING_TO_DEP') {
+        if (plane.status === FLIGHT_STATUS.GOING_TO_DEP) {
           if (arrived || distToTarget < 0.1) {
-            plane.status = 'GOING_TO_DEST';
+            plane.status = FLIGHT_STATUS.GOING_TO_DEST;
             mapRoutes.value?.setMissionSuccess();
           }
-        } else if (plane.status === 'GOING_TO_DEST') {
+        } else if (plane.status === FLIGHT_STATUS.GOING_TO_DEST) {
           // Hedefe 1.0 birim (1km) kala mühimmatı bırak ve patlat
-          if (distToTarget < 1.0) {
+          if (distToTarget < SIM_SETTINGS.EXPLOSION_THRESHOLD_KM) {
             mapMission.value?.triggerExplosion(plane.lat, plane.lon);
             if (plane.ammo > 0) plane.ammo--;
-            plane.status = 'MISSION_COMPLETE';
+            plane.status = FLIGHT_STATUS.MISSION_COMPLETE;
 
             Swal.fire({
               title: 'HEDEF İMHA EDİLDİ', html: `Birim: <b>${plane.callsign}</b><br>Görev Tamamlandı, Üsse Dönülüyor!`,
@@ -389,7 +361,7 @@ onMounted(async () => {
 
             // 3 saniye sonra dönüş  
             setTimeout(() => {
-              if (currentFlights.value[icao] && currentFlights.value[icao].status === 'MISSION_COMPLETE') {
+              if (currentFlights.value[icao] && currentFlights.value[icao].status === FLIGHT_STATUS.MISSION_COMPLETE) {
                 returnToStart();
               }
             }, 3000);
@@ -403,10 +375,10 @@ onMounted(async () => {
 
         // Yolun %70'i tamamlandığında veya kalan mesafe 40 km'nin altına düştüğünde alçalmaya başla
         const descentDist = Math.max(40, (plane.trip_distance || 0) * 0.3);
-        const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos, 220, dynamicReturnAlt, false, descentDist);
+        const { arrived, distToTarget } = updatePlanePhysics(plane, icao, currentPos, targetPos, SIM_SETTINGS.DEFAULT_CRUISE_SPEED, dynamicReturnAlt, false, descentDist);
 
         if (arrived || distToTarget < 0.1) {
-          plane.velocity = 0; plane.baroaltitude = 0; plane.status = 'STANDBY'; plane.energy = 100; plane.ammo = 2;
+          plane.velocity = 0; plane.baroaltitude = 0; plane.status = FLIGHT_STATUS.STANDBY; plane.energy = 100; plane.ammo = 2;
           isReturningToStart.value = false; isPaused.value = true; animationSteps.value[icao] = 0; plane.distance_from_dep = 0;
           drawFullRoute(icao);
           Swal.fire({ title: 'Üsse Dönüldü', text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
@@ -417,14 +389,14 @@ onMounted(async () => {
         // Manuel rotada da mesafeye göre irtifayı dinamik ve orantılı belirle
         const dynamicManualAlt = Math.min(1500, Math.max(500, (plane.total_manual_dist || 15) * 100));
         // Manuel rotada da ortak fizik ve yumuşak alçalma/yükselme mantığını kullan
-        const { arrived, distToTarget: remainingDist } = updatePlanePhysics(plane, icao, currentPos, targetPos, 160, dynamicManualAlt);
+        const { arrived, distToTarget: remainingDist } = updatePlanePhysics(plane, icao, currentPos, targetPos, SIM_SETTINGS.MANUAL_CRUISE_SPEED, dynamicManualAlt);
 
         mapRoutes.value?.updateMissionProgress(plane);
 
         if (arrived || remainingDist < 0.1) {
           plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
-          plane.status = 'ARRIVED';
+          plane.status = FLIGHT_STATUS.ARRIVED;
           plane.energy = 100; plane.ammo = 2;
           mapRoutes.value?.clearAllRoutes();
           Swal.fire({
@@ -438,7 +410,7 @@ onMounted(async () => {
         if (step + 1 >= path.length) {
           plane.velocity = 0;
           plane.baroaltitude = 0;
-          plane.status = 'COMPLETED';
+          plane.status = FLIGHT_STATUS.COMPLETED;
           plane.energy = 100;
           plane.ammo = 2;
           Swal.fire({ title: 'GÖREV TAMAMLANDI', text: 'İkmal yapıldı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
@@ -454,7 +426,7 @@ onMounted(async () => {
 
         if (arrived) animationSteps.value[icao] = step + 1;
       }
-    }, 10);
+    }, SIM_SETTINGS.UPDATE_INTERVAL_MS);
   } catch (error) {
     console.error("Hata:", error);
   }

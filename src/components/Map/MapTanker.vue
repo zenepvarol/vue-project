@@ -6,6 +6,7 @@ import L from 'leaflet';
 import Swal from 'sweetalert2';
 import { getDistance, calculateNextPosition } from '@/utils/physics';
 import { getTankerIcon } from '@/utils/mapVisuals';
+import { FLIGHT_STATUS } from '@/constants/flightConstants';
 
 // PROPS: Harita objesi, uçuş verileri ve havalimanı listesi
 const props = defineProps({
@@ -49,7 +50,7 @@ const update = (activeIcao, isPaused, finalTarget) => {
           velocity: 350,
           energy: 100,
           startBase: tankerBase,
-          status: 'APPROACHING'
+          status: FLIGHT_STATUS.APPROACHING
         };
         tankerMarker.value = L.marker([tankerBase.lat, tankerBase.lon], {
           icon: getTankerIcon(),
@@ -71,12 +72,12 @@ const update = (activeIcao, isPaused, finalTarget) => {
     const targetPlane = props.currentFlights[tanker.targetIcao];
 
     if (!targetPlane) {
-      tanker.status = 'RETURNING';
+      tanker.status = FLIGHT_STATUS.RETURNING;
     } else {
       tanker.energy = Math.max(0, tanker.energy - 0.0008);
 
       // A) YAKLAŞMA: Tanker, hedef uçağa doğru yüksek hızla ilerler
-      if (tanker.status === 'APPROACHING') {
+      if (tanker.status === FLIGHT_STATUS.APPROACHING) {
         const { nextLat, nextLon, heading } = calculateNextPosition(tanker.lat, tanker.lon, targetPlane.lat, targetPlane.lon, 0.4);
         tanker.lat = nextLat;
         tanker.lon = nextLon;
@@ -86,7 +87,7 @@ const update = (activeIcao, isPaused, finalTarget) => {
 
         // Mesafe 500m altına düştüğünde ikmal başlar
         if (getDistance({ lat: tanker.lat, lon: tanker.lon }, { lat: targetPlane.lat, lon: targetPlane.lon }) < 0.5) {
-          tanker.status = 'REFUELING';
+          tanker.status = FLIGHT_STATUS.REFUELING;
           Swal.fire({
             title: 'İKMAL BAŞLADI', text: 'Depo dolduruluyor...', icon: 'info',
             toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
@@ -94,7 +95,7 @@ const update = (activeIcao, isPaused, finalTarget) => {
         }
       }
       // B) İKMAL: Tanker ve uçak beraber uçar, enerji seviyesi doldurulur
-      else if (tanker.status === 'REFUELING') {
+      else if (tanker.status === FLIGHT_STATUS.REFUELING) {
         tanker.lat = targetPlane.lat;
         tanker.lon = targetPlane.lon;
         tMarker.setLatLng([targetPlane.lat, targetPlane.lon]);
@@ -102,7 +103,7 @@ const update = (activeIcao, isPaused, finalTarget) => {
 
         targetPlane.energy = Math.min(100, targetPlane.energy + 0.02);
         if (targetPlane.energy >= 100) {
-          tanker.status = 'RETURNING';
+          tanker.status = FLIGHT_STATUS.RETURNING;
           Swal.fire({
             title: 'İKMAL TAMAMLANDI', text: 'Tanker üsse geri dönüyor.', icon: 'success',
             toast: true, position: 'top-end', timer: 3000, showConfirmButton: false
@@ -110,7 +111,7 @@ const update = (activeIcao, isPaused, finalTarget) => {
         }
       }
       // C) DÖNÜŞ: İkmal sonrası tanker kalktığı üsse geri döner
-      else if (tanker.status === 'RETURNING') {
+      else if (tanker.status === FLIGHT_STATUS.RETURNING) {
         const { nextLat, nextLon, heading, hasArrived } = calculateNextPosition(tanker.lat, tanker.lon, tanker.startBase.lat, tanker.startBase.lon, 0.4);
         tanker.lat = nextLat;
         tanker.lon = nextLon;

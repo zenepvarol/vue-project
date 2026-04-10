@@ -1,5 +1,6 @@
 <script setup>
 import { defineModel } from 'vue'; import L from 'leaflet';
+import { SIM_SETTINGS } from '@/constants/flightConstants';
 
 const props = defineProps({
   selectedFlight: Object,
@@ -32,7 +33,7 @@ const startEmergencyLanding = () => {
 // Simüle edilmiş bir arıza/acil durum başlatır
 const triggerSimulatedFailure = () => {
   if (isEmergencySimulated.value || !props.selectedFlight) return;
-  const p = props.selectedFlight; activeFailure.value = p.energy < 20 ? failureTypes.LOW_BATTERY : failureTypes.LINK_LOSS;
+  const p = props.selectedFlight; activeFailure.value = p.energy < SIM_SETTINGS.LOW_FUEL_THRESHOLD ? failureTypes.LOW_BATTERY : failureTypes.LINK_LOSS;
   isEmergencySimulated.value = true; emergencyCountdown.value = 10;
   const interval = setInterval(() => {
     if (emergencyCountdown.value > 0 && isEmergencySimulated.value) {
