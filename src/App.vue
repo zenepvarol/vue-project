@@ -39,7 +39,7 @@ import { storeToRefs } from 'pinia';
 import { useFlightStore } from '@/stores/flightStore';
 import FleetPanel from '@/components/Fleet/FleetPanel.vue';
 import MissionPanel from '@/components/Mission/MissionPanel.vue';
-import MapEngine from '@/components/Map/MapEngine.vue';
+import MapEngine from '@/components/Map/Core/MapEngine.vue';
 import './assets/flight-style.css';
 
 const store = useFlightStore();
