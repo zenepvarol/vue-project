@@ -51,7 +51,10 @@ export const useFlightStore = defineStore('flight', {
               energy: f.fuel,     // Backend 'fuel' -> Frontend 'energy'
               callsign: f.icao24, // Backend'de callsign yoksa icao24 kullan
               baroaltitude: f.baroaltitude || 0,
-              heading: f.heading || 0
+              heading: f.heading || 0,
+              distance_from_dep: 0,
+              total_mission_dist: 0,
+              trip_distance: 0
             };
           }
         });
