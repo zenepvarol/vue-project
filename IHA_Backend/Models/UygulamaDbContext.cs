@@ -8,7 +8,6 @@ namespace IHA_Backend.Models
         {
         }
 
-        // Bu satır veritabanında "Ucaklar" adında bir tablo oluşturur
         public DbSet<Ucak> Ucaklar { get; set; }
     }
 }

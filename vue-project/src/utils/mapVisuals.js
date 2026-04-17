@@ -23,8 +23,11 @@ export const triggerExplosion = (lat, lon, map) => {
   setTimeout(() => map.removeLayer(explosionMarker), 2500);
 };
 
-export const getPlaneIcon = (isEnvanter) => {
-  const iconColor = isEnvanter ? '#e74c3c' : '#9381ff';
+export const getPlaneIcon = (isEnvanter, isApi) => {
+  let iconColor = '#9381ff'; // Varsayılan: Mavi/Mor
+  if (isEnvanter) iconColor = '#e74c3c'; // Envanter: Kırmızı
+  if (isApi) iconColor = '#ff9800';      // API: Turuncu
+
   return L.divIcon({
     html: `
     <div class="moving-plane">

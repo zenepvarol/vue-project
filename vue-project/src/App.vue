@@ -34,7 +34,7 @@
 </template>
 <script setup>
 
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useFlightStore } from '@/stores/flightStore';
 import FleetPanel from '@/components/Fleet/FleetPanel.vue';
@@ -66,4 +66,17 @@ const toggleDarkMode = () => store.toggleDarkMode();
 const toggleSidebar = () => store.toggleSidebar();
 
 const selectedFlight = computed(() => activeIcao.value ? currentFlights.value[activeIcao.value] : null);
+
+// Bileşen yüklendiğinde API'den verileri çek ve periyodik olarak güncelle
+let fetchInterval = null;
+onMounted(() => {
+  store.fetchFlights();
+  fetchInterval = setInterval(() => {
+    store.fetchFlights();
+  }, 5000); // 5 saniyede bir güncelle
+});
+
+onUnmounted(() => {
+  if (fetchInterval) clearInterval(fetchInterval);
+});
 </script>

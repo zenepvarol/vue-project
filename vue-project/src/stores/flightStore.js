@@ -1,14 +1,11 @@
-/**
- * Pinia kütüphanesi kullanılarak oluşturulan bu depo (store), uçuş verilerinin, kullanıcı
- * tercihlerinin ve global arayüz durumlarının tüm bileşenler arasında senkronize kalmasını sağlar. 
- */
+/** Pinia kütüphanesi kullanılarak oluşturulan bu depo (store), uçuş verilerinin, kullanıcı
+ * tercihlerinin ve global arayüz durumlarının tüm bileşenler arasında senkronize kalmasını sağlar. */
 import { defineStore } from 'pinia';
+import { ucakService } from '@/api/ucakService';
 
 export const useFlightStore = defineStore('flight', {
-  /**
-   * STATE: Uygulamanın belleğinde tutulan reaktif veri tabanıdır.
-   * Bu veriler değiştiğinde, onlara bağlı olan tüm bileşenler (UI) otomatik güncellenir. 
-   */
+  /** STATE: Uygulamanın belleğinde tutulan reaktif veri tabanıdır.
+   * Bu veriler değiştiğinde, onlara bağlı olan tüm bileşenler (UI) otomatik güncellenir. */
   state: () => ({
     searchQuery: '', // Sol paneldeki uçuş arama filtresi
     darkMode: false, // Uygulamanın gece/gündüz teması tercihi
@@ -17,10 +14,8 @@ export const useFlightStore = defineStore('flight', {
     currentFlights: {} // Havada olan tüm aktif İHA/uçak verilerinin tutulduğu obje
   }),
 
-  /**
-   * GETTERS: Mevcut veriden (state) türetilen hesaplanmış (computed) değerlerdir.
-   * Orijinal veriyi bozmadan, ihtiyaca göre filtrelenmiş veya işlenmiş veri döndürür.
-   */
+  /** GETTERS: Mevcut veriden (state) türetilen hesaplanmış (computed) değerlerdir.
+   * Orijinal veriyi bozmadan, ihtiyaca göre filtrelenmiş veya işlenmiş veri döndürür.*/
   getters: {
     //'searchQuery' değerine göre uçuşları 'callsign' üzerinden filtreler.
     filteredFlights: (state) => {
@@ -31,13 +26,38 @@ export const useFlightStore = defineStore('flight', {
     }
   },
 
-  /** ACTIONS: State üzerindeki verileri güncellemek için kullanılan metodlardır. Uygulama içindeki iş mantığını (logic) barındırır. */
+  /** ACTIONS: State üzerindeki verileri güncellemek için kullanılan metodlar. Uygulama içindeki iş mantığını (logic) barındırır. */
   actions: {
     toggleDarkMode() {
       this.darkMode = !this.darkMode;
     },
     toggleSidebar() {
-      this.sidebarOpen = !this.sidebarOpen; //Sol panelin ekran üzerindeki görünürlüğünü (toggle) kontrol eder.
+      this.sidebarOpen = !this.sidebarOpen; // Sol panelin açık/kapalı durumunu değiştirir
+    },
+    // API'den verileri çekip store'u güncelle
+    async fetchFlights() {
+      try {
+        const response = await ucakService.getUcaklar();
+
+        response.data.forEach(f => {
+          // EĞER uçak ilk kez eklenmişse (sadece başlangıçta) verileri set et
+          if (!this.currentFlights[f.icao24]) {
+            this.currentFlights[f.icao24] = {
+              ...f,
+              isApi: true,
+              lat: f.latitude,    // Harita motoru 'lat' bekliyor
+              lon: f.longitude,   // Harita motoru 'lon' bekliyor
+              velocity: f.speed,  // Backend 'speed' -> Frontend 'velocity'
+              energy: f.fuel,     // Backend 'fuel' -> Frontend 'energy'
+              callsign: f.icao24, // Backend'de callsign yoksa icao24 kullan
+              baroaltitude: f.baroaltitude || 0,
+              heading: f.heading || 0
+            };
+          }
+        });
+      } catch (error) {
+        console.error("Uçuş verileri çekilemedi:", error);
+      }
     }
   }
 });

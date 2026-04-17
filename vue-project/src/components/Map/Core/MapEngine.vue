@@ -99,6 +99,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
 
   plane.lat = nextLat;
   plane.lon = nextLon;
+  plane.heading = heading;
   const newPos = [nextLat, nextLon];
 
   if (moveStep === 0) {

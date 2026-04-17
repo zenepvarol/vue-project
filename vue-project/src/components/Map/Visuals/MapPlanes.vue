@@ -27,7 +27,7 @@ watch(() => props.currentFlights, (flights) => {
       if (!plane.lat || !plane.lon) return;
 
       const marker = L.marker([plane.lat, plane.lon], {
-        icon: getPlaneIcon(isEnvanter),
+        icon: getPlaneIcon(isEnvanter, plane.isApi),
         rotationAngle: (plane.heading || 0) - 45
       }).addTo(props.map);
 
@@ -38,9 +38,14 @@ watch(() => props.currentFlights, (flights) => {
 
       markers[icao] = marker;
     }
-    // 2- Mevcut Marker'ı Güncelleme: (Normal güncellemeler için, slideTo slideTo dışı durumlar)
+    // 2- Mevcut Marker'ı Güncelleme: (API'den gelen yeni konumları haritaya yansıt)
     else {
-      const marker = markers[icao]; // Eğer uçağın verisi MapEngine'deki interval ile değişmişse marker'ı o konuma çek
+      const marker = markers[icao];
+      if (plane.isApi) {
+        // API'den yeni konum geldiğinde uçağı oraya yumuşakça kaydır (5 saniyelik atlamayı gizler)
+        marker.slideTo([plane.lat, plane.lon], { duration: 1000 });
+        marker.setRotationAngle((plane.heading || 0) - 45);
+      }
     }
   });
 }, { deep: true });
