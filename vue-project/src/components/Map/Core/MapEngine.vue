@@ -86,8 +86,9 @@ const mapObject = ref(null);
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
-  const plane = currentFlights.value[icao], marker = mapPlanes.value?.markers[icao];
-  if (!plane || !marker) return false;
+  const plane = currentFlights.value[icao];
+  const marker = mapPlanes.value?.markers[String(icao)]; 
+  if (!plane) return false;
 
   const { nextLat, nextLon, heading, hasArrived } = calculateNextPosition(
     plane.lat, plane.lon, targetLat, targetLon, moveStep, plane.heading || 0
@@ -102,13 +103,15 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   plane.heading = heading;
   const newPos = [nextLat, nextLon];
 
-  if (moveStep === 0) {
-    marker.slideTo(newPos, { duration: 100 });
-  } else {
-    marker.setLatLng(newPos);
+  // Marker varsa görseli güncelle, yoksa sadece veri güncellenmiş olur
+  if (marker) {
+    if (moveStep === 0) {
+      marker.slideTo(newPos, { duration: 100 });
+    } else {
+      marker.setLatLng(newPos);
+    }
+    marker.setRotationAngle(heading - 45);
   }
-
-  marker.setRotationAngle(heading - 45);
   if (mapRoutes.value?.activeRoutes[icao] && !isEmergency.value) {
     mapRoutes.value.activeRoutes[icao].addLatLng(newPos);
   }
@@ -171,15 +174,20 @@ const returnToStart = () => {
   const icao = activeIcao.value;
   const plane = currentFlights.value[icao];
 
-  if (plane && props.myFleetIcaos.includes(String(icao))) {
+  if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha)) {
     plane.status = FLIGHT_STATUS.RETURNING;
   }
 
   const path = flightPaths.value[icao];
-  if (path && path.length > 0) {
-    const targetPos = { lat: path[0].lat, lon: path[0].lon };
+  const targetPos = path && path.length > 0 
+    ? { lat: path[0].lat, lon: path[0].lon } 
+    : { lat: plane.homeLat, lon: plane.homeLon };
+
+  if (targetPos && targetPos.lat !== undefined) {
     plane.trip_distance = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
     plane.distance_from_dep = 0;
+    // Uçağa ilk ivmeyi ver (hız 0 ise simülasyon başlamayabilir)
+    if (plane.velocity === 0) plane.velocity = 10;
   }
 
   resetActivePath(icao);
@@ -233,8 +241,9 @@ onMounted(async () => {
     const response = await fetch('/ucus_final_v7.json');
     const data = await response.json();
     const grouped = data.reduce((acc, row) => {
-      if (!acc[row.icao24]) acc[row.icao24] = [];
-      acc[row.icao24].push(row);
+      const icao = String(row.icao24).toUpperCase();
+      if (!acc[icao]) acc[icao] = [];
+      acc[icao].push(row);
       return acc;
     }, {});
     flightPaths.value = grouped;
@@ -276,8 +285,10 @@ onMounted(async () => {
       const getActivePlaneTarget = () => {
         if (isEmergency.value && nearestAirport.value) return nearestAirport.value; // Acil iniş durumunda hedef: en yakın havalimanı
         if (plane.status === FLIGHT_STATUS.GOING_TO_DEP) return plane.missionDep; // Görev kalkış noktasına gidiliyorsa hedef odur
-        if (plane.status === FLIGHT_STATUS.GOING_TO_DEST || plane.status === FLIGHT_STATUS.MISSION_COMPLETE) return plane.status === FLIGHT_STATUS.GOING_TO_DEST ? plane.missionDest : { lat: path[0].lat, lon: path[0].lon }; // üsse dönüş hedefleri
-        if (isReturningToStart.value) return { lat: path[0].lat, lon: path[0].lon }; // Manuel üsse dön butonuyla başlangıç hedefleri
+        if (plane.status === FLIGHT_STATUS.GOING_TO_DEST || plane.status === FLIGHT_STATUS.MISSION_COMPLETE) {
+          return plane.status === FLIGHT_STATUS.GOING_TO_DEST ? plane.missionDest : (path && path.length > 0 ? { lat: path[0].lat, lon: path[0].lon } : { lat: plane.homeLat, lon: plane.homeLon });
+        }
+        if (isReturningToStart.value) return path && path.length > 0 ? { lat: path[0].lat, lon: path[0].lon } : { lat: plane.homeLat, lon: plane.homeLon };
         if (isManualRouting.value && manualTarget.value) return manualTarget.value; // Manuel tıklanan hedefler
         if (path && path.length > 0) return path[path.length - 1]; // Sabit rotalar için son rota noktası
         return null;
@@ -313,7 +324,8 @@ onMounted(async () => {
           plane.velocity = 0; plane.baroaltitude = 0; isPaused.value = true; isEmergency.value = false;
           
           // Eğer iniş yapılan nokta uçağın ana merkeziyse (path[0]), direkt hangara (STANDBY) gir
-          const distToHome = getDistance({ lat: plane.lat, lon: plane.lon }, { lat: path[0].lat, lon: path[0].lon });
+          const homePos = path && path.length > 0 ? { lat: path[0].lat, lon: path[0].lon } : { lat: plane.homeLat, lon: plane.homeLon };
+          const distToHome = getDistance({ lat: plane.lat, lon: plane.lon }, homePos);
           if (distToHome < 0.5) {
             plane.status = FLIGHT_STATUS.STANDBY;
             animationSteps.value[icao] = 0;
@@ -370,7 +382,10 @@ onMounted(async () => {
         }
         // 3. Durum: Görev bitti (imha) / iptal edildi, ana üsse (başlangıç koordinatlarına) geri dönüş
       } else if (isReturningToStart.value) {
-        const targetPos = { lat: path[0].lat, lon: path[0].lon };
+        // Rota yoksa (API uçağı), uçağın ilk eklendiği koordinata (homeLat) dön
+        const targetPos = path && path.length > 0 
+          ? { lat: path[0].lat, lon: path[0].lon } 
+          : { lat: plane.homeLat, lon: plane.homeLon };
         // Dönüş yolu uzunluğuna göre dinamik irtifa hesapla
         const dynamicReturnAlt = Math.min(10000, Math.max(1000, (plane.trip_distance || 100) * 100));
 

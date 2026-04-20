@@ -25,8 +25,12 @@ export const triggerExplosion = (lat, lon, map) => {
 
 export const getPlaneIcon = (isEnvanter, isApi) => {
   let iconColor = '#9381ff'; // Varsayılan: Mavi/Mor
-  if (isEnvanter) iconColor = '#e74c3c'; // Envanter: Kırmızı
-  if (isApi) iconColor = '#ff9800';      // API: Turuncu
+  
+  if (isEnvanter) {
+    iconColor = '#e74c3c'; // Envanter: Kırmızı
+  } else if (isApi) {
+    iconColor = '#ff9800'; // API: Turuncu
+  }
 
   return L.divIcon({
     html: `

@@ -42,7 +42,7 @@
             :color="selectedFlight.energy < 20 ? 'error' : 'success'" height="8" rounded />
         </div>
 
-        <div class="detail-item full-width mb-3" v-if="myFleetIcaos.includes(String(activeIcao))">
+        <div class="detail-item full-width mb-3" v-if="myFleetIcaos.includes(String(activeIcao)) || selectedFlight.isSiha">
           <label style="font-size: 11px; font-weight: bold; margin-bottom: 8px; display: block; color: #555;">
             <v-icon icon="mdi-bomb" size="14" /> MÜHİMMAT DURUMU
           </label>
@@ -105,7 +105,7 @@
 
       <div class="action-section d-flex flex-column gap-2 mt-4">
         <v-btn
-          v-if="(animationSteps[activeIcao] > 0 || (myFleetIcaos.includes(String(activeIcao)) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
+          v-if="(animationSteps[activeIcao] > 0 || ((myFleetIcaos.includes(String(activeIcao)) || selectedFlight.isSiha) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
           color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')">
           ANA MERKEZE DÖN
         </v-btn>

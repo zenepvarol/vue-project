@@ -33,9 +33,11 @@ const assignMission = () => {
     return;
   }
 
-  const availableIcaos = props.myFleetIcaos.filter(icao =>
-    props.currentFlights[icao] && props.currentFlights[icao].status === FLIGHT_STATUS.STANDBY
-  );
+  const availableIcaos = Object.keys(props.currentFlights).filter(icao => {
+    const plane = props.currentFlights[icao];
+    const isOurSiha = props.myFleetIcaos.includes(String(icao)) || plane.isSiha || plane.IsSiha;
+    return isOurSiha && (plane.status === FLIGHT_STATUS.STANDBY || plane.status === FLIGHT_STATUS.ARRIVED);
+  });
   
   if (availableIcaos.length === 0) {
     Swal.fire('Hangar Boş', 'Şu an tüm üslerdeki İHA’lar görevde!', 'info');
@@ -47,7 +49,10 @@ const assignMission = () => {
 
   availableIcaos.forEach(icao => {
     const plane = props.currentFlights[icao];
-    const dist = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
+    const dist = getDistance(
+      { lat: parseFloat(plane.lat), lon: parseFloat(plane.lon) }, 
+      { lat: parseFloat(targetPos.lat), lon: parseFloat(targetPos.lon) }
+    );
     if (dist < minDistance) {
       minDistance = dist;
       closestIcao = icao;
@@ -55,6 +60,11 @@ const assignMission = () => {
   });
 
   const plane = props.currentFlights[closestIcao];
+  
+  // Kalkış noktasını (evini) unutmaması için o anki konumunu kesinleştir
+  plane.homeLat = parseFloat(plane.lat);
+  plane.homeLon = parseFloat(plane.lon);
+  
   plane.missionDest = targetPos;
   plane.trip_distance = minDistance;
   plane.total_mission_dist = minDistance;

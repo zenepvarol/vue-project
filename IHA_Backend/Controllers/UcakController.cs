@@ -38,6 +38,7 @@ namespace IHA_Backend.Controllers
                 existingUcak.Speed = ucak.Speed;
                 existingUcak.Fuel = ucak.Fuel;
                 existingUcak.Status = ucak.Status;
+                existingUcak.IsSiha = ucak.IsSiha;
                 _context.Ucaklar.Update(existingUcak);
             }
             else

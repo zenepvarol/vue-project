@@ -40,23 +40,35 @@ export const useFlightStore = defineStore('flight', {
         const response = await ucakService.getUcaklar();
 
         response.data.forEach(f => {
-          // EĞER uçak ilk kez eklenmişse (sadece başlangıçta) verileri set et
-          if (!this.currentFlights[f.icao24]) {
-            this.currentFlights[f.icao24] = {
-              ...f,
-              isApi: true,
-              lat: f.latitude,    // Harita motoru 'lat' bekliyor
-              lon: f.longitude,   // Harita motoru 'lon' bekliyor
-              velocity: f.speed,  // Backend 'speed' -> Frontend 'velocity'
-              energy: f.fuel,     // Backend 'fuel' -> Frontend 'energy'
-              callsign: f.icao24, // Backend'de callsign yoksa icao24 kullan
-              baroaltitude: f.baroaltitude || 0,
-              heading: f.heading || 0,
-              distance_from_dep: 0,
-              total_mission_dist: 0,
-              trip_distance: 0
-            };
-          }
+          const icao = String(f.icao24).toUpperCase();
+          const isSiha = f.isSiha || f.IsSiha || String(f.status).includes('SIHA');
+          
+          // Uçak var mı yok mu bakmadan verilerini güncelle
+          const existingData = this.currentFlights[icao] || {};
+
+          // ÖNEMLİ: Eğer uçak şu an yerel Vue simülasyonu tarafından hareket ettiriliyorsa, 
+          // API'den gelen (eski) koordinatların mevcut konumu ezmesini engelle.
+          const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION', 'ACTIVE', 'ARRIVED'].includes(existingData.status);
+
+          this.currentFlights[icao] = {
+            ...existingData,
+            ...f,
+            icao24: icao,
+            isApi: true,
+            isSiha: isSiha,
+            // Sadece simülasyon yoksa koordinatları API'den al
+            lat: isSimulatingLocally ? existingData.lat : parseFloat(f.latitude),
+            lon: isSimulatingLocally ? existingData.lon : parseFloat(f.longitude),
+            homeLat: existingData.homeLat || parseFloat(f.latitude),
+            homeLon: existingData.homeLon || parseFloat(f.longitude),
+            ammo: isSiha ? (existingData.ammo ?? 2) : 0,
+            status: isSimulatingLocally ? existingData.status : (isSiha ? (existingData.status || 'STANDBY') : (f.status || 'ON_MISSION')),
+            velocity: isSimulatingLocally ? existingData.velocity : f.speed,
+            energy: isSimulatingLocally ? existingData.energy : f.fuel,
+            callsign: f.icao24,
+            baroaltitude: isSimulatingLocally ? existingData.baroaltitude : (f.baroaltitude || 0),
+            heading: isSimulatingLocally ? existingData.heading : (f.heading || 0)
+          };
         });
       } catch (error) {
         console.error("Uçuş verileri çekilemedi:", error);

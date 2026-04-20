@@ -13,5 +13,6 @@ namespace IHA_Backend.Models
         public double Speed { get; set; }
         public double Fuel { get; set; }
         public string Status { get; set; } = "STANDBY";
+        public bool IsSiha { get; set; } = false;
     }
 }

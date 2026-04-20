@@ -27,7 +27,7 @@ watch(() => props.currentFlights, (flights) => {
       if (!plane.lat || !plane.lon) return;
 
       const marker = L.marker([plane.lat, plane.lon], {
-        icon: getPlaneIcon(isEnvanter, plane.isApi),
+        icon: getPlaneIcon(isEnvanter || plane.isSiha, plane.isApi),
         rotationAngle: (plane.heading || 0) - 45
       }).addTo(props.map);
 
@@ -41,8 +41,10 @@ watch(() => props.currentFlights, (flights) => {
     // 2- Mevcut Marker'ı Güncelleme: (API'den gelen yeni konumları haritaya yansıt)
     else {
       const marker = markers[icao];
-      if (plane.isApi) {
-        // API'den yeni konum geldiğinde uçağı oraya yumuşakça kaydır (5 saniyelik atlamayı gizler)
+      const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION'].includes(plane.status);
+      
+      if (plane.isApi && !isSimulatingLocally) {
+        // API'den yeni konum geldiğinde uçağı oraya yumuşakça kaydır
         marker.slideTo([plane.lat, plane.lon], { duration: 1000 });
         marker.setRotationAngle((plane.heading || 0) - 45);
       }
