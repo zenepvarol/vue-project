@@ -69,17 +69,17 @@
         </v-row>
 
         <!-- Mesafe Verisi: Normal uçuşta Gidilen/Toplam, Dönüşte ise Kalan mesafe gösterir -->
-        <div class="detail-item mb-3">
+        <div class="detail-item mb-3" v-if="isReturningToStart || (selectedFlight.total_mission_dist || selectedFlight.trip_distance) > 0">
           <label style="font-size: 11px; color: #555;">
             <v-icon :icon="isReturningToStart ? 'mdi-home-import-outline' : 'mdi-map-marker'" size="14" /> 
             {{ isReturningToStart ? 'Ana Merkeze Uzaklık' : 'Mesafe (Gidilen / Toplam) ' }}
           </label>
           <span class="text-body-2 font-weight-bold">
             <template v-if="isReturningToStart">
-              {{ Math.max(0, Math.round(selectedFlight.trip_distance - selectedFlight.distance_from_dep)) }} km
+              {{ Math.max(0, Math.round((selectedFlight.trip_distance || 0) - (selectedFlight.distance_from_dep || 0))) }} km
             </template>
             <template v-else>
-              {{ Math.round(selectedFlight.distance_from_dep) }} / {{ Math.round(selectedFlight.total_mission_dist || selectedFlight.trip_distance) }} km
+              {{ Math.round(selectedFlight.distance_from_dep || 0) }} / {{ Math.round(selectedFlight.total_mission_dist || selectedFlight.trip_distance || 0) }} km
             </template>
           </span>
         </div>
@@ -89,16 +89,16 @@
           <div class="d-flex justify-space-between mb-1" style="font-size: 11px; font-weight: bold;">
             <span>{{ isReturningToStart ? 'DÖNÜŞ İLERLEMESİ' : 'YOLCULUK İLERLEMESİ' }}</span>
             <span v-if="isReturningToStart">
-              %{{ Math.min(100, Math.round((selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100)) }}
+              %{{ Math.min(100, Math.round(((selectedFlight.distance_from_dep || 0) / (selectedFlight.trip_distance || 1)) * 100)) }}
             </span>
             <span v-else>
-              %{{ Math.min(100, Math.round((selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100)) }}
+              %{{ Math.min(100, Math.round(((selectedFlight.distance_from_dep || 0) / (selectedFlight.total_mission_dist || selectedFlight.trip_distance || 1)) * 100)) }}
             </span>
           </div>
           <v-progress-linear 
             :model-value="Math.min(100, isReturningToStart 
-              ? (selectedFlight.distance_from_dep / selectedFlight.trip_distance) * 100 
-              : (selectedFlight.distance_from_dep / (selectedFlight.total_mission_dist || selectedFlight.trip_distance)) * 100)"
+              ? ((selectedFlight.distance_from_dep || 0) / (selectedFlight.trip_distance || 1)) * 100 
+              : ((selectedFlight.distance_from_dep || 0) / (selectedFlight.total_mission_dist || selectedFlight.trip_distance || 1)) * 100)"
             color="primary" height="6" rounded class="no-transition-progress" />
         </div>
       </div>
