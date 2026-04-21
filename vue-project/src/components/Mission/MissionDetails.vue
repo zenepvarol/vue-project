@@ -14,7 +14,7 @@
         <div class="header-text">
           <h2 style="color: #e74c3c; font-size: 1.1rem; margin: 0;">{{ selectedFlight.callsign || 'Bilinmiyor' }}</h2>
           <span class="model-subtitle text-caption" style="color: #666; font-size: 0.75rem;">
-            {{ selectedFlight.modeltype || 'İnsansız Hava Aracı' }}
+            {{ selectedFlight.modelType || 'İnsansız Hava Aracı' }}
           </span>
         </div>
         <v-btn icon variant="elevated" color="primary" size="small" @click="$emit('recenter-map')" title="Uçağa Odaklan">

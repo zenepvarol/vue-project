@@ -65,7 +65,8 @@ export const useFlightStore = defineStore('flight', {
             status: isSimulatingLocally ? existingData.status : (isSiha ? (existingData.status || 'STANDBY') : (f.status || 'ON_MISSION')),
             velocity: isSimulatingLocally ? existingData.velocity : f.speed,
             energy: isSimulatingLocally ? existingData.energy : f.fuel,
-            callsign: f.icao24,
+            callsign: f.callsign || f.icao24,
+            modelType: f.modelType || 'İHA',
             baroaltitude: isSimulatingLocally ? existingData.baroaltitude : (f.baroaltitude || 0),
             heading: isSimulatingLocally ? existingData.heading : (f.heading || 0)
           };

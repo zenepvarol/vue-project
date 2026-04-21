@@ -33,6 +33,8 @@ namespace IHA_Backend.Controllers
             if (existingUcak != null)
             {
                 // Varsa verileri güncelle
+                existingUcak.Callsign = ucak.Callsign;
+                existingUcak.ModelType = ucak.ModelType;
                 existingUcak.Latitude = ucak.Latitude;
                 existingUcak.Longitude = ucak.Longitude;
                 existingUcak.Speed = ucak.Speed;
