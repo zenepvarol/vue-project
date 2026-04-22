@@ -40,6 +40,5 @@ app.UseSwaggerUI(c =>
 
 app.UseHttpsRedirection();
 app.MapControllers();
-app.MapGet("/", () => "Backend calisiyor. Swagger icin buraya git: /swagger");
 
 app.Run();
