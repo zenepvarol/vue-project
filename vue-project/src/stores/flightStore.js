@@ -2,6 +2,7 @@
  * tercihlerinin ve global arayüz durumlarının tüm bileşenler arasında senkronize kalmasını sağlar. */
 import { defineStore } from 'pinia';
 import { ucakService } from '@/api/ucakService';
+import { flightHistoryService } from '@/api/flightHistoryService';
 
 export const useFlightStore = defineStore('flight', {
   /** STATE: Uygulamanın belleğinde tutulan reaktif veri tabanıdır.
@@ -11,7 +12,8 @@ export const useFlightStore = defineStore('flight', {
     darkMode: false, // Uygulamanın gece/gündüz teması tercihi
     sidebarOpen: true, // Sol panelin (Flight List) açık/kapalı olma durumu
     activeIcao: null, // Haritada ve sağ panelde odaklanılan uçağın ICAO kodu
-    currentFlights: {} // Havada olan tüm aktif İHA/uçak verilerinin tutulduğu obje
+    currentFlights: {}, // Havada olan tüm aktif İHA/uçak verilerinin tutulduğu obje
+    selectedFlightHistory: [] // Seçili uçağın geçmiş uçuş kayıtları
   }),
 
   /** GETTERS: Mevcut veriden (state) türetilen hesaplanmış (computed) değerlerdir.
@@ -76,6 +78,32 @@ export const useFlightStore = defineStore('flight', {
         });
       } catch (error) {
         console.error("Uçuş verileri çekilemedi:", error);
+      }
+    },
+
+    // Uçuş geçmişini backend'den (veritabanından) çekmek için kullanılır
+    async fetchHistory(icao) {
+      if (!icao) return;
+      try {
+        const response = await flightHistoryService.getHistoryByIcao(icao);
+        this.selectedFlightHistory = response.data; // Gelen veriyi arayüzde göstermek üzere state'e yazar
+      } catch (error) {
+        console.error("Uçuş geçmişi çekilemedi:", error);
+      }
+    },
+
+    // Tamamlanan bir uçuşu kalıcı olarak kaydetmek için kullanılır
+    async saveHistory(flightData) {
+      try {
+        // ADIM 3: Store'a gelen veriyi API Servisi üzerinden backend'e gönderilmek üzere yola çıkar
+        await flightHistoryService.saveFlight(flightData);
+        
+        // Eğer o an o uçağın detay paneli açıksa, listeyi hemen tazeler
+        if (this.activeIcao === flightData.icao) {
+          this.fetchHistory(flightData.icao);
+        }
+      } catch (error) {
+        console.error("Uçuş geçmişi kaydedilemedi:", error);
       }
     }
   }

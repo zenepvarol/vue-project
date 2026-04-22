@@ -61,6 +61,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
 import Swal from 'sweetalert2';
+import { useFlightStore } from '@/stores/flightStore';
 import { getDistance, calculateNextPosition } from '@/utils/physics';
 import { getPlaneIcon } from '@/utils/mapVisuals';
 import { FLIGHT_STATUS, SIM_SETTINGS } from '@/constants/flightConstants';
@@ -83,6 +84,30 @@ const destinationAirportId = defineModel('destinationAirportId'), destLat = defi
 const flightPaths = ref({}), manualTarget = ref(null);
 let map = null; const isManualRouting = ref(false), mapTanker = ref(null), mapPlanes = ref(null), mapRoutes = ref(null), mapEmergency = ref(null), mapMission = ref(null), mapManualControl = ref(null), mapNavigator = ref(null);
 const mapObject = ref(null);
+const store = useFlightStore();
+
+// Uçuş kaydını backend'e gönderen yardımcı fonksiyon
+const logFlightRecord = (plane, arrivalName = "Hedef") => {
+  // ADIM 1: Uçağın vardığı anı yakala ve rapor verilerini (icao, nereden, nereye, mesafe) hazırla
+  const departureName = plane.lastDepartureName || "Ana Merkez";
+  const distance = Math.round(plane.distance_from_dep || 0);
+  
+  const flightData = {
+    icao: String(plane.icao24), // ICAO'yu yazı formatına çevirir
+    departure: departureName,
+    arrival: arrivalName,
+    distance: Number(distance)  // Mesafeyi sayı formatına çevirir
+  };
+
+  console.log(">> Uçuş Kaydedildi:", flightData);
+
+  // ADIM 2: Hazırlanan raporu Pinia Store üzerinden backend'e gönderilmek üzere ilet
+  store.saveHistory(flightData);
+  
+  // sonraki uçuş için mesafe sayacı sıfırlanır ve yeni kalkış noktası atanır
+  plane.distance_from_dep = 0;
+  plane.lastDepartureName = arrivalName;
+};
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
@@ -176,6 +201,8 @@ const returnToStart = () => {
 
   if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha)) {
     plane.status = FLIGHT_STATUS.RETURNING;
+    // Dönüş başladığında, kalkış noktası olarak bulunduğu yeri (Hedef/Görev Sahası) kaydet
+    plane.lastDepartureName = plane.status === FLIGHT_STATUS.GOING_TO_DEST ? (plane.missionDest?.name || "Görev Sahası") : "Görev Sahası";
   }
 
   const path = flightPaths.value[icao];
@@ -329,9 +356,10 @@ onMounted(async () => {
           if (distToHome < 0.5) {
             plane.status = FLIGHT_STATUS.STANDBY;
             animationSteps.value[icao] = 0;
-            plane.distance_from_dep = 0;
+            logFlightRecord(plane, "Ana Merkez (Acil)");
           } else {
             plane.status = FLIGHT_STATUS.EMERGENCY_LANDED;
+            logFlightRecord(plane, nearestAirport.value?.name || "Acil İniş Noktası");
           }
 
           plane.energy = 100; plane.ammo = 2;
@@ -359,6 +387,7 @@ onMounted(async () => {
           if (arrived || distToTarget < 0.1) {
             plane.status = FLIGHT_STATUS.GOING_TO_DEST;
             mapRoutes.value?.setMissionSuccess();
+            logFlightRecord(plane, plane.missionDest?.name || "Görev Sahası");
           }
         } else if (plane.status === FLIGHT_STATUS.GOING_TO_DEST) {
           // Hedefe 1.0 birim (1km) kala mühimmatı bırak ve patlat
@@ -395,7 +424,8 @@ onMounted(async () => {
 
         if (arrived || distToTarget < 0.1) {
           plane.velocity = 0; plane.baroaltitude = 0; plane.status = FLIGHT_STATUS.STANDBY; plane.energy = 100; plane.ammo = 2;
-          isReturningToStart.value = false; isPaused.value = true; animationSteps.value[icao] = 0; plane.distance_from_dep = 0;
+          isReturningToStart.value = false; isPaused.value = true; animationSteps.value[icao] = 0;
+          logFlightRecord(plane, "Ana Merkez");
           drawFullRoute(icao);
           Swal.fire({ title: 'Üsse Dönüldü', text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         }
@@ -410,10 +440,11 @@ onMounted(async () => {
         mapRoutes.value?.updateMissionProgress(plane);
 
         if (arrived || remainingDist < 0.1) {
-          plane.velocity = 0; plane.baroaltitude = 0; plane.distance_from_dep = plane.trip_distance;
+          plane.velocity = 0; plane.baroaltitude = 0;
           isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
           plane.status = FLIGHT_STATUS.ARRIVED;
           plane.energy = 100; plane.ammo = 2;
+          logFlightRecord(plane, manualTarget.value?.name || "Manuel Hedef");
           mapRoutes.value?.clearAllRoutes();
           Swal.fire({
             title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota ve ikmal tamamlandı.`,
@@ -429,6 +460,7 @@ onMounted(async () => {
           plane.status = FLIGHT_STATUS.COMPLETED;
           plane.energy = 100;
           plane.ammo = 2;
+          logFlightRecord(plane, "Rota Sonu");
           Swal.fire({ title: 'GÖREV TAMAMLANDI', text: 'İkmal yapıldı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
           return;
         }
