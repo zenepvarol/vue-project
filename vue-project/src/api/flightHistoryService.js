@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5143/api/FlightHistory';
+const API_URL = 'https://localhost:7089/api/FlightHistory';
 
 export const flightHistoryService = {
   getAllHistory() {
@@ -9,6 +9,7 @@ export const flightHistoryService = {
   getHistoryByIcao(icao) {
     return axios.get(`${API_URL}/${icao}`);
   },
+  // Veri HTTP POST isteği ile backend portuna (7089) gider
   saveFlight(flightData) {
     return axios.post(API_URL, flightData);
   },

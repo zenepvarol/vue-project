@@ -34,7 +34,7 @@ namespace IHA_Backend.Controllers
                 .ToListAsync();
         }
 
-        // Yeni uçuş kaydı ekle
+        // ADIM 5: Gelen paketi karşıla, zaman damgasını bas ve veritabanına kalıcı olarak kaydet
         [HttpPost]
         public async Task<ActionResult<FlightHistory>> PostFlightHistory(FlightHistory history)
         {
