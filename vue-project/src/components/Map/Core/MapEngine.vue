@@ -61,7 +61,8 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
 import 'leaflet.marker.slideto';
 import Swal from 'sweetalert2';
-import { useFlightStore } from '@/stores/flightStore';
+import { useMissionLogger } from '@/composables/useMissionLogger';
+import { useEmergencySystem } from '@/composables/useEmergencySystem';
 import { getDistance, calculateNextPosition } from '@/utils/physics';
 import { getPlaneIcon } from '@/utils/mapVisuals';
 import { FLIGHT_STATUS, SIM_SETTINGS } from '@/constants/flightConstants';
@@ -84,30 +85,9 @@ const destinationAirportId = defineModel('destinationAirportId'), destLat = defi
 const flightPaths = ref({}), manualTarget = ref(null);
 let map = null; const isManualRouting = ref(false), mapTanker = ref(null), mapPlanes = ref(null), mapRoutes = ref(null), mapEmergency = ref(null), mapMission = ref(null), mapManualControl = ref(null), mapNavigator = ref(null);
 const mapObject = ref(null);
-const store = useFlightStore();
+const { logFlightRecord } = useMissionLogger();
+const { nearestAirport, startEmergencyLanding, triggerSimulatedFailure, handleManualEmergency } = useEmergencySystem(props, airports, mapEmergency);
 
-// Uçuş kaydını backend'e gönderen yardımcı fonksiyon
-const logFlightRecord = (plane, arrivalName = "Hedef") => {
-  // ADIM 1: Uçağın vardığı anı yakala ve rapor verilerini (icao, nereden, nereye, mesafe) hazırla
-  const departureName = plane.lastDepartureName || "Ana Merkez";
-  const distance = Math.round(plane.distance_from_dep || 0);
-  
-  const flightData = {
-    icao: String(plane.icao24), // ICAO'yu yazı formatına çevirir
-    departure: departureName,
-    arrival: arrivalName,
-    distance: Number(distance)  // Mesafeyi sayı formatına çevirir
-  };
-
-  console.log(">> Uçuş Kaydedildi:", flightData);
-
-  // ADIM 2: Hazırlanan raporu Pinia Store üzerinden backend'e gönderilmek üzere ilet
-  store.saveHistory(flightData);
-  
-  // sonraki uçuş için mesafe sayacı sıfırlanır ve yeni kalkış noktası atanır
-  plane.distance_from_dep = 0;
-  plane.lastDepartureName = arrivalName;
-};
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
 const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
@@ -177,22 +157,6 @@ const drawMissionRoute = (plane, targetPos) => {
   return mapRoutes.value?.drawMissionRoute(plane, targetPos);
 };
 
-// Uçağın o anki konumuna en yakın müttefik havalimanını (üs noktasını) bulur
-const getNearestAirport = (planeLat, planeLon) => {
-  if (!airports.value.length) return null;
-  const planePos = { lat: planeLat, lon: planeLon };
-  return airports.value.reduce((nearest, airport) => {
-    return getDistance(planePos, airport) < getDistance(planePos, nearest) ? airport : nearest;
-  });
-};
-
-const nearestAirport = computed(() => {
-  if (props.selectedFlight && airports.value.length > 0) {
-    return getNearestAirport(props.selectedFlight.lat, props.selectedFlight.lon);
-  }
-  return null;
-});
-
 // Görevi iptal ederek aktif uçağın başlangıç koordinatlarına (üssüne) dönmesini tetikler
 const returnToStart = () => {
   if (!activeIcao.value) return;
@@ -250,9 +214,6 @@ const drawFullRoute = (icao) => {
 };
 
 const setManualTarget = () => mapManualControl.value?.setManualTarget();
-const startEmergencyLanding = () => mapEmergency.value?.startEmergencyLanding();
-const triggerSimulatedFailure = () => mapEmergency.value?.triggerSimulatedFailure();
-const handleManualEmergency = () => mapEmergency.value?.handleManualEmergency();
 const focusFlight = (f) => mapNavigator.value?.focusFlight(f);
 const assignMission = () => mapMission.value?.assignMission();
 const triggerExplosion = (lat, lon) => mapMission.value?.triggerExplosion(lat, lon);

@@ -151,12 +151,19 @@
           HEDEFE YÖNLENDİR
         </v-btn>
       </div>
+
+      <!-- ADIM: Uçağın tüm geçmiş uçuşlarını listeleyen tablo bileşeni -->
+      <FlightHistoryList />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+import { useFlightStore } from '@/stores/flightStore'; // Uçuş verilerine erişmek için store'u içe aktarır
+import FlightHistoryList from './FlightHistoryList.vue'; // Geçmiş listesi bileşenini dahil eder
+
+const store = useFlightStore(); // Store'u bileşen içinde kullanıma hazır hale getirir
 
 const props = defineProps({
   selectedFlight: Object,
@@ -177,6 +184,14 @@ const manualLat = defineModel('manualLat');
 const manualLon = defineModel('manualLon');
 
 defineEmits(['recenter-map', 'return-to-start', 'toggle-pause', 'trigger-simulated-failure', 'handle-manual-emergency', 'set-manual-target']);
+
+// ADIM: Haritadan yeni bir uçak seçildiğinde (activeIcao değiştiğinde)
+// backend'e gidip o uçağın uçuş geçmişini güncel olarak çeker.
+watch(activeIcao, (newIcao) => {
+  if (newIcao) {
+    store.fetchHistory(newIcao); // Store'daki fetchHistory fonksiyonunu tetikler
+  }
+}, { immediate: true }); // Sayfa ilk yüklendiğinde de çalışmasını sağlar
 
 const STATUS_CONFIGS = {
   EMERGENCY: { text: 'ACİL İNİŞTE', color: '#e74c3c' },
