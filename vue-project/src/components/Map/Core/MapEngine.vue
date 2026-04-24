@@ -63,6 +63,7 @@ import 'leaflet.marker.slideto';
 import Swal from 'sweetalert2';
 import { useMissionLogger } from '@/composables/useMissionLogger';
 import { useEmergencySystem } from '@/composables/useEmergencySystem';
+import { useMissionControl } from '@/composables/useMissionControl';
 import { getDistance, calculateNextPosition } from '@/utils/physics';
 import { getPlaneIcon } from '@/utils/mapVisuals';
 import { FLIGHT_STATUS, SIM_SETTINGS } from '@/constants/flightConstants';
@@ -85,8 +86,12 @@ const destinationAirportId = defineModel('destinationAirportId'), destLat = defi
 const flightPaths = ref({}), manualTarget = ref(null);
 let map = null; const isManualRouting = ref(false), mapTanker = ref(null), mapPlanes = ref(null), mapRoutes = ref(null), mapEmergency = ref(null), mapMission = ref(null), mapManualControl = ref(null), mapNavigator = ref(null);
 const mapObject = ref(null);
+
 const { logFlightRecord } = useMissionLogger();
 const { nearestAirport, startEmergencyLanding, triggerSimulatedFailure, handleManualEmergency } = useEmergencySystem(props, airports, mapEmergency);
+const { resetActivePath, drawMissionRoute, returnToStart, assignMission, triggerExplosion, setManualTarget } = useMissionControl({
+  activeIcao, currentFlights, props, flightPaths, isReturningToStart, isEmergency, isPaused, isManualRouting, mapRoutes, mapMission, mapManualControl
+});
 
 
 // Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
@@ -148,46 +153,6 @@ const updatePlanePhysics = (plane, icao, currentPos, targetPos, cruiseSpeed = 22
   return { arrived, distToTarget };
 };
 
-const resetActivePath = (icao) => {
-  mapRoutes.value?.resetActivePath(icao);
-};
-
-// Aktif bir görevi başlattığımızda veya güncellediğimizde rotayı çizer
-const drawMissionRoute = (plane, targetPos) => {
-  return mapRoutes.value?.drawMissionRoute(plane, targetPos);
-};
-
-// Görevi iptal ederek aktif uçağın başlangıç koordinatlarına (üssüne) dönmesini tetikler
-const returnToStart = () => {
-  if (!activeIcao.value) return;
-  const icao = activeIcao.value;
-  const plane = currentFlights.value[icao];
-
-  if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha)) {
-    plane.status = FLIGHT_STATUS.RETURNING;
-    // Dönüş başladığında, kalkış noktası olarak bulunduğu yeri (Hedef/Görev Sahası) kaydet
-    plane.lastDepartureName = plane.status === FLIGHT_STATUS.GOING_TO_DEST ? (plane.missionDest?.name || "Görev Sahası") : "Görev Sahası";
-  }
-
-  const path = flightPaths.value[icao];
-  const targetPos = path && path.length > 0 
-    ? { lat: path[0].lat, lon: path[0].lon } 
-    : { lat: plane.homeLat, lon: plane.homeLon };
-
-  if (targetPos && targetPos.lat !== undefined) {
-    plane.trip_distance = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
-    plane.distance_from_dep = 0;
-    // Uçağa ilk ivmeyi ver (hız 0 ise simülasyon başlamayabilir)
-    if (plane.velocity === 0) plane.velocity = 10;
-  }
-
-  resetActivePath(icao);
-  isReturningToStart.value = true;
-  isEmergency.value = false;
-  isPaused.value = false;
-  isManualRouting.value = false;
-  mapRoutes.value?.clearAllRoutes();
-};
 
 const zoomToPlane = (lat, lon) => mapNavigator.value?.zoomToPlane(lat, lon);
 const recenterMap = () => mapNavigator.value?.recenterMap();
@@ -213,10 +178,8 @@ const drawFullRoute = (icao) => {
   mapRoutes.value?.drawFullRoute(icao);
 };
 
-const setManualTarget = () => mapManualControl.value?.setManualTarget();
 const focusFlight = (f) => mapNavigator.value?.focusFlight(f);
-const assignMission = () => mapMission.value?.assignMission();
-const triggerExplosion = (lat, lon) => mapMission.value?.triggerExplosion(lat, lon);
+
 
 // Bileşen ayağa kalktığında Leaflet haritasını oluşturur ve JSON verilerini yükler
 onMounted(async () => {
@@ -266,7 +229,7 @@ onMounted(async () => {
 
       // TB3 gerçekçiliği için yakıt tüketimi (100% = 5700 km menzil) (0.01 di guncellendi)
       if (plane.energy > 0 && plane.velocity > 0) plane.energy = Math.max(0, plane.energy - SIM_SETTINGS.FUEL_CONSUMPTION_RATE);
-      if (plane.energy < SIM_SETTINGS.LOW_FUEL_THRESHOLD && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) mapEmergency.value?.triggerSimulatedFailure();
+      if (plane.energy < SIM_SETTINGS.LOW_FUEL_THRESHOLD && !isEmergencySimulated.value && !isEmergency.value && !isReturningToStart.value) triggerSimulatedFailure();
 
       /** Uçağın o anki uçuş moduna göre (Acil iniş, görev, manuel rota) gitmek istediği asıl hedef noktasını tespit eder. 
        * Bu hedef, yakıtın yetip yetmeyeceğini hesaplamak için kullanılır.*/
@@ -353,7 +316,7 @@ onMounted(async () => {
         } else if (plane.status === FLIGHT_STATUS.GOING_TO_DEST) {
           // Hedefe 1.0 birim (1km) kala mühimmatı bırak ve patlat
           if (distToTarget < SIM_SETTINGS.EXPLOSION_THRESHOLD_KM) {
-            mapMission.value?.triggerExplosion(plane.lat, plane.lon);
+            triggerExplosion(plane.lat, plane.lon);
             if (plane.ammo > 0) plane.ammo--;
             plane.status = FLIGHT_STATUS.MISSION_COMPLETE;
 
