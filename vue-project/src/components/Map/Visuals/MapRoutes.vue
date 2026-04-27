@@ -3,6 +3,7 @@
  * Uçakların izleri (polylines), görev rotaları ve seçili uçuşun tüm rota haritasını çizen görsel katmanları yönetir. */
 import { ref, watch, onUnmounted } from 'vue';
 import L from 'leaflet';
+import { interpolateSlerp } from '@/utils/physics';
 
 const props = defineProps({
   map: Object,           // Leaflet harita objesi
@@ -46,24 +47,35 @@ const drawMissionRoute = (plane, targetPos) => {
   if (!props.map) return;
   if (missionPathLayer.value) props.map.removeLayer(missionPathLayer.value);
 
-  const startPos = [plane.lat, plane.lon];
-  const targetCoord = [targetPos.lat, targetPos.lon];
+  // Başlangıç ve hedef koordinatlarını obje formatına hazırla
+  const startCoord = { lat: plane.lat, lon: plane.lon };
+  const targetCoord = { lat: targetPos.lat, lon: targetPos.lon };
 
-  // Hedefe kadar olan kesikli yol (Preview)
-  const previewLine = L.polyline([startPos, targetCoord], {
+  // Slerp ile kavisli önizleme yolu oluştur (Preview)
+  // Eskiden düz çizgi olan bu kısım artık 50 ara noktadan oluşan kavisli bir hat.
+  const previewPoints = [];
+  for (let i = 0; i <= 50; i++) {
+    const pos = interpolateSlerp(startCoord, targetCoord, i / 50);
+    previewPoints.push([pos.lat, pos.lon]);
+  }
+
+  // Kavisli kesikli çizgi (Önizleme)
+  const previewLine = L.polyline(previewPoints, {
     color: '#e74c3c', weight: 4, dashArray: '10, 5', opacity: 0.7
   });
 
   // Hedef noktası ikonu
-  const targetCircle = L.circleMarker(targetCoord, {
+  const targetLatLng = [targetPos.lat, targetPos.lon];
+  const targetCircle = L.circleMarker(targetLatLng, {
     radius: 8, color: '#e74c3c', fillOpacity: 1, weight: 2
   }).bindPopup('<b>BOMBALAMA HEDEFİ</b>');
 
-  // Uçağın ilerledikçe arkasında bıraktığı kırmızı katı çizgi
-  const progressLine = L.polyline([startPos], {
+  // Uçağın ilerledikçe arkasında bıraktığı kırmızı katı çizgi (Canlı takip)
+  const progressLine = L.polyline([[plane.lat, plane.lon]], {
     color: '#e74c3c', weight: 4, opacity: 1
   });
 
+  // Katmanları birleştirip haritaya ekle
   missionPathLayer.value = L.layerGroup([previewLine, targetCircle, progressLine]).addTo(props.map);
   return progressLine;
 };
@@ -120,11 +132,20 @@ const setMissionSuccess = () => {
   }
 };
 
-// Acil durum rotasını oluşturur
+// Acil durum rotasını oluşturur (Kavisli)
 const setEmergencyRoute = (start, end) => {
   if (!props.map) return;
   if (emergencyRoute.value) props.map.removeLayer(emergencyRoute.value);
-  emergencyRoute.value = L.polyline([start, end], {
+
+  // Acil iniş yapılacak en yakın havalimanına kavisli bir hat oluştur
+  const points = [];
+  for (let i = 0; i <= 30; i++) {
+    const pos = interpolateSlerp(start, end, i / 30);
+    points.push([pos.lat, pos.lon]);
+  }
+
+  // Kırmızı kesikli acil iniş hattını çiz
+  emergencyRoute.value = L.polyline(points, {
     color: 'red', weight: 4, dashArray: '10, 10', opacity: 0.8
   }).addTo(props.map);
   return emergencyRoute.value;

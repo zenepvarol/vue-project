@@ -64,9 +64,10 @@ import Swal from 'sweetalert2';
 import { useMissionLogger } from '@/composables/useMissionLogger';
 import { useEmergencySystem } from '@/composables/useEmergencySystem';
 import { useMissionControl } from '@/composables/useMissionControl';
-import { getDistance, calculateNextPosition } from '@/utils/physics';
+import { getDistance, calculateNextPosition, interpolateSlerp } from '@/utils/physics';
 import { getPlaneIcon } from '@/utils/mapVisuals';
 import { FLIGHT_STATUS, SIM_SETTINGS } from '@/constants/flightConstants';
+import { ucakService } from '@/api/ucakService';
 import MapTanker from '../Features/MapTanker.vue';
 import MapLayers from './MapLayers.vue';
 import MapPlanes from '../Visuals/MapPlanes.vue';
@@ -189,34 +190,46 @@ onMounted(async () => {
   mapObject.value = map;
 
   try {
-    const response = await fetch('/ucus_final_v7.json');
-    const data = await response.json();
-    const grouped = data.reduce((acc, row) => {
-      const icao = String(row.icao24).toUpperCase();
-      if (!acc[icao]) acc[icao] = [];
-      acc[icao].push(row);
-      return acc;
-    }, {});
-    flightPaths.value = grouped;
-
-    Object.keys(grouped).forEach(icao => {
-      const firstPoint = grouped[icao][0];
-      const lastPoint = grouped[icao][grouped[icao].length - 1];
-      const totalPathDist = lastPoint.distance_from_dep || 0;
-      const isEnvanter = props.myFleetIcaos.includes(icao.toString());
+    // ADIM 1: Veri Kaynağı Entegrasyonu
+    // Tüm uçak verileri (konum, hız, yakıt vb.) backend servisinden (ucakService) canlı olarak çekilir.
+    const ucakResponse = await ucakService.getUcaklar();
+    const ucaklar = ucakResponse.data;
+    const grouped = {};
+    
+    ucaklar.forEach(ucak => {
+      const icao = String(ucak.icao24).toUpperCase();
       
+      // ADIM 2: İlk Konumlandırma
+      // Uçaklar simülasyon başlangıcında API'den gelen güncel koordinatlarına yerleştirilir.
+      const startPos = { 
+        lat: ucak.latitude, 
+        lon: ucak.longitude,
+        velocity: ucak.speed || 0,
+        baroaltitude: ucak.baroaltitude || 0
+      };
+      
+      // Her uçak için başlangıçta mevcut konumunu içeren bir rota listesi oluşturulur.
+      // Bu liste, uçuş görevi atandığında kavisli rota noktalarıyla doldurulacaktır.
+      grouped[icao] = [startPos];
+
+      // ADIM 3: Operasyonel Verilerin Başlatılması
+      // Harita üzerindeki her bir birimin durumu (Yakıt, mühimmat, uçuş statüsü) reaktif olarak tanımlanır.
+      const isEnvanter = props.myFleetIcaos.includes(icao);
       currentFlights.value[icao] = {
-        ...firstPoint,
-        velocity: 0,
-        baroaltitude: 0,
-        energy: 100,
-        total_mission_dist: totalPathDist,
-        trip_distance: totalPathDist,
+        ...startPos,
+        energy: ucak.fuel || 100,
+        total_mission_dist: 0,
+        trip_distance: 0,
+        distance_from_dep: 0,
         ammo: isEnvanter ? 2 : 0,
+        isSiha: ucak.isSiha,
         status: isEnvanter ? FLIGHT_STATUS.STANDBY : FLIGHT_STATUS.ON_MISSION
       };
+      // Animasyonun mevcut adım takibi 0dan baslar
       animationSteps.value[icao] = 0;
     });
+    // Gruplanan rota verileri harita katmanına aktarılır.
+    flightPaths.value = grouped;
 
     // Simülasyon döngüsü: Uçakların hareketini, hızlanmasını ve görev kontrollerini periyodik denetler
     setInterval(() => {
