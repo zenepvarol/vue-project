@@ -110,10 +110,6 @@
           ANA MERKEZE DÖN
         </v-btn>
 
-        <v-btn v-if="isPaused && animationSteps[activeIcao] === 0 && !myFleetIcaos.includes(String(activeIcao))"
-          color="success" block size="default" prepend-icon="mdi-play" @click="$emit('toggle-pause')">
-          KALKIŞ ONAYI VER
-        </v-btn>
 
         <v-btn v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart" color="warning" block
           size="default" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')">

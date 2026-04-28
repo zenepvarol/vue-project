@@ -59,5 +59,19 @@ namespace IHA_Backend.Controllers
 
             return Ok($"{icao} kodlu uçağın tüm geçmişi silindi.");
         }
+
+        // Bütün uçuş geçmişini sil
+        [HttpDelete("all")]
+        public async Task<IActionResult> DeleteAllFlightHistory()
+        {
+            var history = await _context.FlightHistories.ToListAsync();
+
+            if (history.Count == 0) return Ok("Silinecek uçuş geçmişi bulunmuyor.");
+
+            _context.FlightHistories.RemoveRange(history);
+            await _context.SaveChangesAsync();
+
+            return Ok("Tüm uçuş geçmişi başarıyla silindi.");
+        }
     }
 }

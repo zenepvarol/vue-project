@@ -251,7 +251,7 @@ onMounted(async () => {
         total_mission_dist: 0,
         trip_distance: 0,
         distance_from_dep: 0,
-        ammo: isEnvanter ? 2 : 0,
+        ammo: (isEnvanter || ucak.isSiha) ? 2 : 0,
         isSiha: ucak.isSiha,
         status: isEnvanter ? FLIGHT_STATUS.STANDBY : FLIGHT_STATUS.ON_MISSION
       };
@@ -429,6 +429,8 @@ onMounted(async () => {
           plane.status = FLIGHT_STATUS.COMPLETED;
           plane.energy = 100;
           plane.ammo = 2;
+          isPaused.value = true;
+          animationSteps.value[icao] = 0;
           logFlightRecord(plane, "Rota Sonu");
           Swal.fire({ title: 'GÖREV TAMAMLANDI', text: 'İkmal yapıldı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
           return;

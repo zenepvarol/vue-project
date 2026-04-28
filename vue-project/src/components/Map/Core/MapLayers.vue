@@ -4,6 +4,7 @@
 import { watch } from 'vue'; import L from 'leaflet';
 import { getAirportIcon } from '@/utils/mapVisuals';
 import { airportService } from '@/api/airportService';
+import { ucakService } from '@/api/ucakService';
 
 /** PROPS: Üst bileşenden (MapEngine) gelen aktif Leaflet harita objesi */
 const props = defineProps({ map: Object });
@@ -21,14 +22,33 @@ watch(() => props.map, async (newMap) => {
     try {
       const response = await airportService.getAirports();
       const airData = response.data;
+
+      // Uçakların başlangıç noktalarını da Ana Üs (Havalimanı) olarak ekle
+      const ucakResponse = await ucakService.getUcaklar();
+      const ucaklar = ucakResponse.data;
+
+      ucaklar.forEach(ucak => {
+        const baseId = `BASE_${ucak.icao24}`;
+        // Eğer bu üs daha önce eklenmemişse listeye dahil et
+        if (!airData.find(a => a.id === baseId)) {
+          airData.push({
+            id: baseId,
+            name: `${ucak.callsign || ucak.icao24} Ana Üssü`,
+            lat: parseFloat(ucak.latitude),
+            lon: parseFloat(ucak.longitude),
+            type: 'Base'
+          });
+        }
+      });
+
       emit('airports-loaded', airData);
 
       // 3. MARKER OLUŞTURMA: Her bir havaalanı için harita üzerinde ikon ve bilgi kutusu (popup) oluşturur
       airData.forEach(ap => {
-          const airportIcon = getAirportIcon(ap.id);
+          const airportIcon = getAirportIcon(ap.type === 'Base' ? 'ÜS' : ap.id);
           L.marker([ap.lat, ap.lon], { icon: airportIcon })
             .addTo(newMap)
-            .bindPopup(`<b>${ap.name}</b><br>Acil İniş Noktası`);
+            .bindPopup(`<b>${ap.name}</b><br>${ap.type === 'Base' ? 'Ana Üs' : 'Acil İniş Noktası'}`);
       });
     } catch (error) {
       console.error("Havaalanları yüklenirken hata oluştu:", error);
