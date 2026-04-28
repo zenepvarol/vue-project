@@ -35,6 +35,10 @@ const setManualTarget = () => {
     const plane = props.currentFlights[activeIcao.value];
     const dist = getDistance({ lat: plane.lat, lon: plane.lon }, target);
 
+    // Slerp algoritmasının kullanabilmesi için başlangıç konumunu kaydet
+    plane.startLat = parseFloat(plane.lat);
+    plane.startLon = parseFloat(plane.lon);
+    
     plane.trip_distance = dist;
     plane.total_mission_dist = dist; 
     plane.distance_from_dep = 0;

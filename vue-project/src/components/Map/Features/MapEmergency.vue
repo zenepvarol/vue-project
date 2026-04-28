@@ -1,6 +1,7 @@
 <script setup>
 import { defineModel } from 'vue'; import L from 'leaflet';
 import { SIM_SETTINGS } from '@/constants/flightConstants';
+import { getDistance } from '@/utils/physics';
 
 const props = defineProps({
   selectedFlight: Object,
@@ -22,6 +23,16 @@ const startEmergencyLanding = () => {
     isEmergency.value = true; isPaused.value = false;
     const start = [props.selectedFlight.lat, props.selectedFlight.lon];
     const end = [props.nearestAirport.lat, props.nearestAirport.lon];
+    
+    // Slerp uçuşu için başlangıç konumunu ve toplam mesafeyi kaydet
+    props.selectedFlight.startLat = props.selectedFlight.lat;
+    props.selectedFlight.startLon = props.selectedFlight.lon;
+    props.selectedFlight.distance_from_dep = 0;
+    props.selectedFlight.trip_distance = getDistance(
+      { lat: props.selectedFlight.lat, lon: props.selectedFlight.lon },
+      { lat: props.nearestAirport.lat, lon: props.nearestAirport.lon }
+    );
+
     props.mapRoutes?.setEmergencyRoute(start, end);     // Rota çizimi
 
     if (props.map) {

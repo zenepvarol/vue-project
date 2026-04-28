@@ -101,9 +101,38 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   const marker = mapPlanes.value?.markers[String(icao)]; 
   if (!plane) return false;
 
-  const { nextLat, nextLon, heading, hasArrived } = calculateNextPosition(
-    plane.lat, plane.lon, targetLat, targetLon, moveStep, plane.heading || 0
-  );
+  let nextLat, nextLon, heading, hasArrived;
+
+  // Eğer uçağın kavisli rota için başlangıç noktası (startLat/startLon) ve mesafesi belliyse Slerp uygula
+  if (moveStep > 0 && plane.startLat !== undefined && plane.startLon !== undefined && plane.trip_distance > 0) {
+    const startPos = { lat: plane.startLat, lon: plane.startLon };
+    const targetPos = { lat: targetLat, lon: targetLon };
+    
+    // Kümülatif mesafe üzerinden ilerleme oranını (t) hesapla
+    const nextDist = plane.distance_from_dep + moveStep;
+    const t = Math.min(1, nextDist / plane.trip_distance);
+    
+    // Slerp ile kavis üzerindeki gerçek noktayı bul
+    const nextPoint = interpolateSlerp(startPos, targetPos, t);
+    
+    nextLat = nextPoint.lat;
+    nextLon = nextPoint.lon;
+    
+    // Yönelim (heading) hesabı
+    const dx = nextLat - plane.lat;
+    const dy = nextLon - plane.lon;
+    heading = (Math.atan2(dy, dx) * (180 / Math.PI));
+    
+    // Hedefe ulaşıldı mı kontrolü
+    hasArrived = t >= 1 || getDistance({ lat: plane.lat, lon: plane.lon }, targetPos) <= moveStep;
+  } else {
+    // Slerp için veri yoksa doğrusal (eski) yöntemi kullan
+    const result = calculateNextPosition(plane.lat, plane.lon, targetLat, targetLon, moveStep, plane.heading || 0);
+    nextLat = result.nextLat;
+    nextLon = result.nextLon;
+    heading = result.heading;
+    hasArrived = result.hasArrived;
+  }
 
   if (hasArrived) {
     return true;
@@ -113,6 +142,7 @@ const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
   plane.lon = nextLon;
   plane.heading = heading;
   const newPos = [nextLat, nextLon];
+
 
   // Marker varsa görseli güncelle, yoksa sadece veri güncellenmiş olur
   if (marker) {
@@ -272,7 +302,9 @@ onMounted(async () => {
 
         // İniş sırasında hızı ve adımı kalan mesafeye göre orantılı düşürüyoruz
         const stepSize = Math.max(0.05, plane.velocity / 2000);
+        const oldPos = { lat: plane.lat, lon: plane.lon };
         const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
+        plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
 
         if (!arrived && dist > 0) {
           // Kalan mesafe üzerinden kaç adım kaldığını hesapla

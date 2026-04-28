@@ -56,6 +56,11 @@ export function useMissionControl(context) {
     if (targetPos && targetPos.lat !== undefined) {
       plane.trip_distance = getDistance({ lat: plane.lat, lon: plane.lon }, targetPos);
       plane.distance_from_dep = 0;
+      
+      // Slerp algoritmasının kullanabilmesi için başlangıç konumunu kaydet
+      plane.startLat = parseFloat(plane.lat);
+      plane.startLon = parseFloat(plane.lon);
+      
       // Uçağa ilk hareketi ver
       if (plane.velocity === 0) plane.velocity = 10;
     }

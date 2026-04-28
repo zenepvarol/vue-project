@@ -65,6 +65,10 @@ const assignMission = () => {
   plane.homeLat = parseFloat(plane.lat);
   plane.homeLon = parseFloat(plane.lon);
   
+  // Slerp algoritmasının kullanabilmesi için başlangıç konumunu kaydet
+  plane.startLat = parseFloat(plane.lat);
+  plane.startLon = parseFloat(plane.lon);
+  
   plane.missionDest = targetPos;
   plane.trip_distance = minDistance;
   plane.total_mission_dist = minDistance;
