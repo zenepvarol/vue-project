@@ -64,7 +64,8 @@ import Swal from 'sweetalert2';
 import { useMissionLogger } from '@/composables/useMissionLogger';
 import { useEmergencySystem } from '@/composables/useEmergencySystem';
 import { useMissionControl } from '@/composables/useMissionControl';
-import { getDistance, calculateNextPosition, interpolateSlerp } from '@/utils/physics';
+import { useFlightPhysics } from '@/composables/useFlightPhysics';
+import { getDistance } from '@/utils/physics';
 import { getPlaneIcon } from '@/utils/mapVisuals';
 import { FLIGHT_STATUS, SIM_SETTINGS } from '@/constants/flightConstants';
 import { ucakService } from '@/api/ucakService';
@@ -93,96 +94,11 @@ const { nearestAirport, startEmergencyLanding, triggerSimulatedFailure, handleMa
 const { resetActivePath, drawMissionRoute, returnToStart, assignMission, triggerExplosion, setManualTarget } = useMissionControl({
   activeIcao, currentFlights, props, flightPaths, isReturningToStart, isEmergency, isPaused, isManualRouting, mapRoutes, mapMission, mapManualControl
 });
+const { movePlane, updatePlanePhysics } = useFlightPhysics(currentFlights, mapPlanes, mapRoutes, isEmergency);
 
 
-// Verilen uçağı hedeflenen koordinata doğru ilerletir ve dönüş açısını ayarlar
-const movePlane = (icao, targetLat, targetLon, moveStep = 0) => {
-  const plane = currentFlights.value[icao];
-  const marker = mapPlanes.value?.markers[String(icao)]; 
-  if (!plane) return false;
-
-  let nextLat, nextLon, heading, hasArrived;
-
-  // Eğer uçağın kavisli rota için başlangıç noktası (startLat/startLon) ve mesafesi belliyse Slerp uygula
-  if (moveStep > 0 && plane.startLat !== undefined && plane.startLon !== undefined && plane.trip_distance > 0) {
-    const startPos = { lat: plane.startLat, lon: plane.startLon };
-    const targetPos = { lat: targetLat, lon: targetLon };
-    
-    // Kümülatif mesafe üzerinden ilerleme oranını (t) hesapla
-    const nextDist = plane.distance_from_dep + moveStep;
-    const t = Math.min(1, nextDist / plane.trip_distance);
-    
-    // Slerp ile kavis üzerindeki gerçek noktayı bul
-    const nextPoint = interpolateSlerp(startPos, targetPos, t);
-    
-    nextLat = nextPoint.lat;
-    nextLon = nextPoint.lon;
-    
-    // Yönelim (heading) hesabı
-    const dx = nextLat - plane.lat;
-    const dy = nextLon - plane.lon;
-    heading = (Math.atan2(dy, dx) * (180 / Math.PI));
-    
-    // Hedefe ulaşıldı mı kontrolü
-    hasArrived = t >= 1 || getDistance({ lat: plane.lat, lon: plane.lon }, targetPos) <= moveStep;
-  } else {
-    // Slerp için veri yoksa doğrusal (eski) yöntemi kullan
-    const result = calculateNextPosition(plane.lat, plane.lon, targetLat, targetLon, moveStep, plane.heading || 0);
-    nextLat = result.nextLat;
-    nextLon = result.nextLon;
-    heading = result.heading;
-    hasArrived = result.hasArrived;
-  }
-
-  if (hasArrived) {
-    return true;
-  }
-
-  plane.lat = nextLat;
-  plane.lon = nextLon;
-  plane.heading = heading;
-  const newPos = [nextLat, nextLon];
 
 
-  // Marker varsa görseli güncelle, yoksa sadece veri güncellenmiş olur
-  if (marker) {
-    if (moveStep === 0) {
-      marker.slideTo(newPos, { duration: 100 });
-    } else {
-      marker.setLatLng(newPos);
-    }
-    marker.setRotationAngle(heading - 45);
-  }
-  if (mapRoutes.value?.activeRoutes[icao] && !isEmergency.value) {
-    mapRoutes.value.activeRoutes[icao].addLatLng(newPos);
-  }
-  return false;
-};
-
-const updatePlanePhysics = (plane, icao, currentPos, targetPos, cruiseSpeed = 220, cruiseAlt = 10000, noDescent = false, descentDist = 20) => {
-  const distToTarget = getDistance(currentPos, targetPos);
-  const stepSize = Math.max(0.1, plane.velocity / 1500);
-  const oldPos = { lat: plane.lat, lon: plane.lon };
-
-  const arrived = movePlane(icao, targetPos.lat, targetPos.lon, stepSize);
-  plane.distance_from_dep += getDistance(oldPos, { lat: plane.lat, lon: plane.lon });
-
-  if (!noDescent && distToTarget < descentDist) {
-    // İniş mantığı: Belirlenen alçalma mesafesine (descentDist) girildiğinde orantılı azalma başlar.
-    const ratio = Math.max(0, distToTarget / descentDist);
-    const targetVel = cruiseSpeed * ratio;
-    const targetAlt = cruiseAlt * ratio;
-
-    plane.velocity += (targetVel - plane.velocity) * 0.1;
-    plane.baroaltitude += (targetAlt - plane.baroaltitude) * 0.1;
-  } else {
-    // Kalkış ve Seyir: Hedef değerlere yumuşak geçiş
-    plane.velocity += (cruiseSpeed - plane.velocity) * 0.01;
-    plane.baroaltitude += (cruiseAlt - plane.baroaltitude) * 0.01;
-  }
-
-  return { arrived, distToTarget };
-};
 
 
 const zoomToPlane = (lat, lon) => mapNavigator.value?.zoomToPlane(lat, lon);
