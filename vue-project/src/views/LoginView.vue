@@ -1,9 +1,9 @@
 <template>
-  <div class="login-container">
-    <v-container fluid class="fill-height">
-      <v-row align="center" justify="center" class="login-row">
+  <!-- <div class="login-container"> -->
+    <v-container fluid class="fill-height d-flex justify-content-center align-center">
+      <v-row align="center" justify="center" class="w-100 login-row d-flex align-center justify-content-center">
         <v-col cols="12" sm="8" md="4" lg="3" xl="2">
-          <v-card class="login-card elevation-12" rounded="xl">
+          <v-card class="elevation-12" rounded="xl" elevation="5">
             <v-card-text class="pa-8">
               <div class="text-center mb-8">
                 <h1 class="text-h5 font-weight-bold primary--text mb-1">SİSTEM GİRİŞİ</h1>
@@ -11,16 +11,20 @@
               </div>
 
               <v-form @submit.prevent="handleLogin" ref="form">
-                <v-text-field
-                  v-model="username"
-                  label="Kullanıcı Adı"
-                  prepend-inner-icon="mdi-account-outline"
-                  variant="outlined"
-                  rounded="lg"
-                  required
-                  :rules="[v => !!v || 'Kullanıcı adı gerekli']"
-                  class="mb-4"
-                ></v-text-field>
+                <v-row>
+                  <v-col>
+                    <v-text-field
+                      v-model="username"
+                      label="Kullanıcı Adı"
+                      prepend-inner-icon="mdi-account-outline"
+                      variant="outlined"
+                      rounded="lg"
+                      required
+                      :rules="[v => !!v || 'Kullanıcı adı gerekli']"
+                      class="mb-4"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
 
                 <v-text-field
                   v-model="password"
@@ -60,7 +64,7 @@
         </v-col>
       </v-row>
     </v-container>
-  </div>
+  <!-- </div> -->
 </template>
 
 <script setup>
