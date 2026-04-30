@@ -45,10 +45,10 @@ watch(() => props.map, async (newMap) => {
 
       // 3. MARKER OLUŞTURMA: Her bir havaalanı için harita üzerinde ikon ve bilgi kutusu (popup) oluşturur
       airData.forEach(ap => {
-          const airportIcon = getAirportIcon(ap.type === 'Base' ? 'ÜS' : ap.id);
-          L.marker([ap.lat, ap.lon], { icon: airportIcon })
-            .addTo(newMap)
-            .bindPopup(`<b>${ap.name}</b><br>${ap.type === 'Base' ? 'Ana Üs' : 'Acil İniş Noktası'}`);
+        const airportIcon = getAirportIcon(ap.type === 'Base' ? 'ÜS' : ap.id);
+        L.marker([ap.lat, ap.lon], { icon: airportIcon })
+          .addTo(newMap)
+          .bindPopup(`<b>${ap.name}</b><br>${ap.type === 'Base' ? 'Ana Üs' : 'Acil İniş Noktası'}`);
       });
     } catch (error) {
       console.error("Havaalanları yüklenirken hata oluştu:", error);

@@ -35,8 +35,8 @@ const resetActivePath = (icao) => {
     routeLayer.removeLayer(activeRoutes[icao]);
     const plane = props.currentFlights[icao];
     if (plane) {
-      activeRoutes[icao] = L.polyline([[plane.lat, plane.lon]], { 
-        color: '#9381ff', weight: 4, opacity: 1 
+      activeRoutes[icao] = L.polyline([[plane.lat, plane.lon]], {
+        color: '#9381ff', weight: 4, opacity: 1
       }).addTo(routeLayer);
     }
   }
@@ -83,7 +83,7 @@ const drawMissionRoute = (plane, targetPos) => {
 /** METOD: Seçili uçağın tüm geçmiş ve gelecek rotasını haritaya döker */
 const drawFullRoute = (icao) => {
   if (!props.map || !props.flightPaths[icao]) return;
-  
+
   clearAllRoutes();
   const path = props.flightPaths[icao];
   const allPoints = path.map(p => [p.lat, p.lon]);
@@ -91,7 +91,7 @@ const drawFullRoute = (icao) => {
 
   // Tüm rotayı gösteren soluk çizgi
   const staticPath = L.polyline(allPoints, { color: '#0077b6', weight: 2, opacity: 0.5 });
-  
+
   // Şu ana kadar kat edilen yolu gösteren belirgin çizgi
   const pointsSoFar = allPoints.slice(0, currentStep + 1);
   activeRoutes[icao] = L.polyline(pointsSoFar, { color: '#9381ff', weight: 4, opacity: 1 });

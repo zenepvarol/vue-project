@@ -14,18 +14,22 @@
            align-center: Yazı ve butonu dikeyde aynı hizada tut. -->
       <v-col cols="12" style="max-width: 280px;" class="d-flex justify-space-between align-center">
         <div class="text-subtitle-1 font-weight-bold">Uçuş Listesi</div>
-        <!-- v-btn: Karanlık/Aydınlık modu değiştiren buton. -->
-        <!-- icon: Butonu yuvarlak ve ikon boyutunda yapar.
-             variant="text": Arka planı olmayan, sadece üzerine gelince parlayan buton. -->
-        <v-btn icon variant="text" size="small" @click="store.toggleDarkMode" id="dark-mode-toggle">
-          <!-- v-icon: Mod durumuna göre güneş veya ay ikonu gösterir. -->
-          <v-icon :color="store.darkMode ? 'yellow-darken-2' : 'indigo-darken-1'"
-            :icon="store.darkMode ? 'mdi-weather-sunny' : 'mdi-moon-waxing-crescent'" />
-          <!-- v-tooltip: Üzerine gelince mod ismini gösteren küçük bilgi kutusu. -->
-          <v-tooltip activator="parent" location="bottom">
-            {{ store.darkMode ? 'Aydınlık Mod' : 'Karanlık Mod' }}
-          </v-tooltip>
-        </v-btn>
+        <div class="d-flex align-center gap-1">
+          <!-- v-btn: Karanlık/Aydınlık modu değiştiren buton. -->
+          <v-btn icon variant="text" size="small" @click="store.toggleDarkMode" id="dark-mode-toggle">
+            <v-icon :color="store.darkMode ? 'yellow-darken-2' : 'indigo-darken-1'"
+              :icon="store.darkMode ? 'mdi-weather-sunny' : 'mdi-moon-waxing-crescent'" />
+            <v-tooltip activator="parent" location="bottom">
+              {{ store.darkMode ? 'Aydınlık Mod' : 'Karanlık Mod' }}
+            </v-tooltip>
+          </v-btn>
+
+          <!-- Logout Butonu -->
+          <v-btn icon variant="text" size="small" color="error" @click="handleLogout" id="logout-btn">
+            <v-icon icon="mdi-logout" />
+            <v-tooltip activator="parent" location="bottom">Çıkış Yap</v-tooltip>
+          </v-btn>
+        </div>
       </v-col>
     </v-row>
 
@@ -50,7 +54,16 @@
 <script setup>
 // useFlightStore: Uçuş verilerini ve ayarları (dark mode, arama sorgusu vs.) yöneten depoyu içeri aktarır.
 import { useFlightStore } from '@/stores/flightStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useRouter } from 'vue-router';
 
 // 'store' değişkeni üzerinden tüm uçuş verilerine ve fonksiyonlarına (toggleDarkMode gibi) erişiriz.
 const store = useFlightStore();
+const authStore = useAuthStore();
+const router = useRouter();
+
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/login');
+};
 </script>

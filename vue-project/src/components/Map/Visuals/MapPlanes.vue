@@ -42,7 +42,7 @@ watch(() => props.currentFlights, (flights) => {
     else {
       const marker = markers[icao];
       const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION'].includes(plane.status);
-      
+
       if (plane.isApi && !isSimulatingLocally) {
         // API'den yeni konum geldiğinde uçağı oraya yumuşakça kaydır
         marker.slideTo([plane.lat, plane.lon], { duration: 1000 });

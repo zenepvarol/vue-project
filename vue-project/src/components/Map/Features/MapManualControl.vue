@@ -38,26 +38,26 @@ const setManualTarget = () => {
     // Slerp algoritmasının kullanabilmesi için başlangıç konumunu kaydet
     plane.startLat = parseFloat(plane.lat);
     plane.startLon = parseFloat(plane.lon);
-    
+
     plane.trip_distance = dist;
-    plane.total_mission_dist = dist; 
+    plane.total_mission_dist = dist;
     plane.distance_from_dep = 0;
     plane.total_manual_dist = dist;
-    plane.status = FLIGHT_STATUS.ACTIVE; 
+    plane.status = FLIGHT_STATUS.ACTIVE;
     manualTarget.value = target;
     isManualRouting.value = true;
     isPaused.value = false;
 
     // Rota çizimini tetikle
-    props.mapRoutes?.drawMissionRoute(plane, target); 
+    props.mapRoutes?.drawMissionRoute(plane, target);
 
     Swal.fire({
-      icon: 'success', 
-      title: 'Rota Hazır', 
+      icon: 'success',
+      title: 'Rota Hazır',
       text: `Mesafe: ${Math.round(dist)} km`,
-      timer: 1500, 
-      toast: true, 
-      position: 'top-end', 
+      timer: 1500,
+      toast: true,
+      position: 'top-end',
       showConfirmButton: false
     });
   }

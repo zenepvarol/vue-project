@@ -11,5 +11,6 @@ namespace IHA_Backend.Models
         public DbSet<Ucak> Ucaklar { get; set; }
         public DbSet<Airport> Airports { get; set; }
         public DbSet<FlightHistory> FlightHistories { get; set; }
+        public DbSet<User> Users { get; set; }
     }
 }

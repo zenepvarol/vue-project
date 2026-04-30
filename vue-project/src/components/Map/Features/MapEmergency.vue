@@ -23,7 +23,7 @@ const startEmergencyLanding = () => {
     isEmergency.value = true; isPaused.value = false;
     const start = [props.selectedFlight.lat, props.selectedFlight.lon];
     const end = [props.nearestAirport.lat, props.nearestAirport.lon];
-    
+
     // Slerp uçuşu için başlangıç konumunu ve toplam mesafeyi kaydet
     props.selectedFlight.startLat = props.selectedFlight.lat;
     props.selectedFlight.startLon = props.selectedFlight.lon;

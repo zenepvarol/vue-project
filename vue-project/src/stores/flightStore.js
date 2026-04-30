@@ -44,7 +44,7 @@ export const useFlightStore = defineStore('flight', {
         response.data.forEach(f => {
           const icao = String(f.icao24).toUpperCase();
           const isSiha = f.isSiha || f.IsSiha || String(f.status).includes('SIHA');
-          
+
           // Uçak var mı yok mu bakmadan verilerini güncelle
           const existingData = this.currentFlights[icao] || {};
 
@@ -97,7 +97,7 @@ export const useFlightStore = defineStore('flight', {
       try {
         // ADIM 3: Store'a gelen veriyi API Servisi üzerinden backend'e gönderilmek üzere yola çıkar
         await flightHistoryService.saveFlight(flightData);
-        
+
         // Eğer o an o uçağın detay paneli açıksa, listeyi hemen tazeler
         if (this.activeIcao === flightData.icao) {
           this.fetchHistory(flightData.icao);
