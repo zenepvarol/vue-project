@@ -30,4 +30,23 @@ api.interceptors.request.use(
   }
 );
 
+/** Response Interceptor: Sunucudan gelen yanıtları denetler.
+ * Özellikle oturum süresi dolduğunda (401 Hatası) kullanıcıyı Login sayfasına yönlendirir. */
+api.interceptors.response.use(
+  (response) => {
+    return response; // Başarılı yanıtları olduğu gibi geri döndürür.
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Yerel hafızadaki geçersiz oturum verilerini temizler.
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+
+      window.location.href = '/login'; // Kullanıcıyı Login sayfasına yönlendirir.
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
