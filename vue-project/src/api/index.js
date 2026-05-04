@@ -1,3 +1,6 @@
+/** api/index.js - API Konfigürasyonu ve İstek Denetleyici
+ * Giden tüm HTTP isteklerini merkezi olarak yöneten ve kimlik doğrulama 
+ * üstbilgilerini (Authorization Header) otomatik olarak enjekte eden birimdir. */
 import axios from 'axios';
 
 const api = axios.create({
@@ -6,5 +9,25 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 });
+
+/** Request Interceptor: HTTP istekleri sunucuya iletilmeden önce çalıştırılır.
+ * İstemci tarafında saklanan JWT (JSON Web Token) bilgisini her isteğe dahil eder. */
+api.interceptors.request.use(
+  (config) => {
+    // Yerel depolama biriminden (localStorage) mevcut oturum anahtarını (token) sorgular.
+    const token = localStorage.getItem('token');
+
+    // Geçerli bir token bulunması durumunda, HTTP Authorization üstbilgisine Bearer şemasıyla tanımlanır.
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    // İstek yapılandırması sırasında oluşabilecek hataları yakalar ve geri döndürür.
+    return Promise.reject(error);
+  }
+);
 
 export default api;

@@ -1,9 +1,13 @@
+/** UcakController.cs - Bu dosyadaki verilere erişmek için [Authorize] kilidi gereklidir. 
+ * Sadece geçerli bir anahtarı (token) olan kullanıcılar uçak verilerini görebilir. */
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using IHA_Backend.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IHA_Backend.Controllers
 {
+    [Authorize] // Sadece geçerli bir JWT Token'ı olanlar bu sınıfa erişebilir.
     [Route("api/[controller]")]
     [ApiController]
     public class UcakController : ControllerBase

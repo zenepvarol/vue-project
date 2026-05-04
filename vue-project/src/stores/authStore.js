@@ -1,53 +1,60 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import api from '@/api/index' // Merkezi API konfigürasyon birimi sisteme dahil edilir.
 
-/** authStore.js - Yetkilendirme Deposu (Pinia)
- * Uygulama genelindeki kullanıcı giriş durumu ve kimlik doğrulama işlemlerini merkezi olarak yönetir. */
+/** authStore.js - Uygulama genelindeki kimlik doğrulama durumunu, kullanıcı verilerini ve 
+ * erişim anahtarlarını (JWT) merkezi bir yapıda yönetir. */
 export const useAuthStore = defineStore('auth', () => {
-  // Uygulama başladığında tarayıcı belleğindeki (localStorage) mevcut oturum bilgilerini yükler
+  // Uygulama başlatıldığında yerel depolama biriminden (localStorage) mevcut oturum verileri yüklenir.
   const isAuthenticated = ref(localStorage.getItem('isAuthenticated') === 'true')
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
+  const token = ref(localStorage.getItem('token') || null)
 
-  /** login: Kullanıcı girişi işlemini gerçekleştirir.
-   * Backend API üzerinden kullanıcı bilgilerini kontrol eder ve oturum başlatır. */
+  /** login: Kullanıcı kimlik doğrulama sürecini başlatır ve yönetir.
+   * @param {string} username - Kullanıcı adı
+   * @param {string} password - Şifre
+   */
   async function login(username, password) {
     try {
-      const response = await fetch('https://localhost:7089/api/Users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      })
+      // Kimlik bilgileri, POST metodu ile ilgili API uç noktasına (Endpoint) iletilir.
+      const response = await api.post('/Users/login', { username, password });
 
-      if (response.ok) {
-        const data = await response.json()
-        isAuthenticated.value = true
-        user.value = data
-        
-        // Oturumu kalıcı hale getirmek için bilgileri tarayıcı hafızasına kaydeder
-        localStorage.setItem('isAuthenticated', 'true')
-        localStorage.setItem('user', JSON.stringify(user.value))
-        return true
+      if (response.status === 200) {
+        const data = response.data;
+        isAuthenticated.value = true;
+        user.value = { id: data.id, username: data.username, role: data.role };
+        token.value = data.token; // Sunucu tarafından dönen JWT anahtarı belleğe alınır.
+
+        // Oturumun sürekliliği için veriler yerel depolama biriminde (Persistence) saklanır.
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('user', JSON.stringify(user.value));
+        localStorage.setItem('token', data.token);
+        return true;
       }
-      return false
+      return false;
     } catch (error) {
-      // API bağlantı sorunlarını konsola yazdırır
-      console.error('Backend bağlantı hatası:', error)
-      return false
+      // Hatalı kimlik doğrulama veya sunucu bağlantı hataları yakalanır.
+      console.error('Kimlik doğrulama hatası:', error.response?.data?.message || error.message);
+      return false;
     }
   }
 
-  /** logout: Mevcut oturumu sonlandırır ve tüm kullanıcı verilerini temizler. */
+  /** logout: Mevcut oturumu sonlandırır ve tüm güvenlik verilerini sistemden temizler. */
   function logout() {
-    isAuthenticated.value = false
-    user.value = null
-    // Tarayıcı hafızasındaki oturum bilgilerini siler
-    localStorage.removeItem('isAuthenticated')
-    localStorage.removeItem('user')
+    isAuthenticated.value = false;
+    user.value = null;
+    token.value = null;
+
+    // Yerel depolama birimindeki tüm oturum kayıtları temizlenir.
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
   }
 
   return {
     isAuthenticated,
     user,
+    token,
     login,
     logout
   }
