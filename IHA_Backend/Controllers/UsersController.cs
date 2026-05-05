@@ -72,7 +72,7 @@ namespace IHA_Backend.Controllers
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
                 // expires: DateTime.Now.AddHours(1),
-                expires: DateTime.Now.AddMinutes(1),
+                expires: DateTime.Now.AddMinutes(5),
                 signingCredentials: credentials);
 
             // Yapılandırılan nesne, iletilebilir string formatına dönüştürülür.

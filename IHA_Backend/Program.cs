@@ -1,10 +1,11 @@
 /** Program.cs - Bu dosya, JWT (JSON Web Token) sisteminin kurallarını belirler.
  * Gelen anahtarların doğruluğunu, süresini ve kim tarafından verildiğini kontrol eder. */
-using IHA_Backend.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using IHA_Backend.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +29,6 @@ builder.Services.AddControllers();
 
 // Swagger Servisleri
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 // Bu bölüm, gelen token'ların nasıl doğrulanacağını sisteme öğretir.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -42,11 +42,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true, // Güvenlik anahtarını doğrula
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            ClockSkew = TimeSpan.Zero, // Tolerans süresini sıfıra indir
-            // appsettings.json'daki gizli anahtarı kullanarak şifreyi çözer
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
     });
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "ASP.NET Core Web API",
+        Version = "v1",
+        Description = "ASP.NET Core Web API with JWT authentication. " +
+        "Target Framework is .NET 10. " +
+        "Swashbuckle.AspNetCore 10.1.7 is used."
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Please enter token"
+    });
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+        });
+});
 
 builder.Services.AddAuthorization(); // Yetkilendirme servislerini aktif et
 
