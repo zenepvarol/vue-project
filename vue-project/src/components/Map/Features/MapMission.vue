@@ -70,6 +70,7 @@ const assignMission = () => {
   plane.startLon = parseFloat(plane.lon);
 
   plane.missionDest = targetPos;
+  plane.missionDestName = destinationAirportId.value === 'MANUAL_COORD' ? 'Manuel' : (arrAp?.id || 'Hedef');
   plane.trip_distance = minDistance;
   plane.total_mission_dist = minDistance;
   plane.distance_from_dep = 0;

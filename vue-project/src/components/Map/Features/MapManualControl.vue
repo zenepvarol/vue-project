@@ -44,7 +44,10 @@ const setManualTarget = () => {
     plane.distance_from_dep = 0;
     plane.total_manual_dist = dist;
     plane.status = FLIGHT_STATUS.ACTIVE;
-    manualTarget.value = target;
+    
+    const targetName = manualAirportId.value === 'MANUAL_COORD' ? 'Manuel' : (targetAp?.id || 'Hedef');
+    plane.missionDestName = targetName;
+    manualTarget.value = { ...target, name: targetName };
     isManualRouting.value = true;
     isPaused.value = false;
 

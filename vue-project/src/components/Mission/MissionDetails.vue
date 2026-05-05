@@ -33,6 +33,16 @@
           </span>
         </div>
 
+        <!-- Mevcut Hedef Bilgisi -->
+        <div class="detail-item full-width mb-3" v-if="selectedFlight.missionDestName">
+          <label style="font-size: 11px; opacity: 0.7; color: #555;">
+            <v-icon icon="mdi-map-marker-distance" size="14" /> Hedef
+          </label>
+          <span class="text-subtitle-2 font-weight-bold" style="color: #2c3e50;">
+            {{ selectedFlight.missionDestName }}
+          </span>
+        </div>
+
         <!-- Yakıt Göstergesi -->
         <div class="detail-item full-width mb-3">
           <label style="font-size: 11px; font-weight: bold; margin-bottom: 4px; display: block; color: #555;">

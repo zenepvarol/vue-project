@@ -45,7 +45,7 @@ export function useMissionControl(context) {
     if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha)) {
       plane.status = FLIGHT_STATUS.RETURNING;
       // Dönüş başladığında, kalkış noktası olarak bulunduğu yeri kaydet
-      plane.lastDepartureName = plane.status === FLIGHT_STATUS.GOING_TO_DEST ? (plane.missionDest?.name || "Görev Sahası") : "Görev Sahası";
+      plane.lastDepartureName = plane.missionDestName || "Görev Sahası";
     }
 
     const path = flightPaths.value[icao];

@@ -166,7 +166,9 @@ onMounted(async () => {
           logFlightRecord(plane, "Ana Merkez (Acil)");
         } else {
           plane.status = FLIGHT_STATUS.EMERGENCY_LANDED;
-          logFlightRecord(plane, nearestAirport.value?.name || "Acil İniş Noktası");
+          const landingSpot = nearestAirport.value?.id || "ACIL";
+          plane.missionDestName = landingSpot; // Sonraki uçuş için kalkış noktası ismi güncellenir
+          logFlightRecord(plane, landingSpot);
         }
 
         plane.energy = 100; plane.ammo = 2;
@@ -194,7 +196,7 @@ onMounted(async () => {
         if (arrived || distToTarget < 0.1) {
           plane.status = FLIGHT_STATUS.GOING_TO_DEST;
           mapRoutes.value?.setMissionSuccess();
-          logFlightRecord(plane, plane.missionDest?.name || "Görev Sahası");
+          logFlightRecord(plane, plane.missionDestName || "Görev Sahası");
         }
       } else if (plane.status === FLIGHT_STATUS.GOING_TO_DEST) {
         // Hedefe 1.0 birim (1km) kala mühimmatı bırak ve patlat
@@ -202,6 +204,7 @@ onMounted(async () => {
           triggerExplosion(plane.lat, plane.lon);
           if (plane.ammo > 0) plane.ammo--;
           plane.status = FLIGHT_STATUS.MISSION_COMPLETE;
+          logFlightRecord(plane, plane.missionDestName || "Hedef");
 
           Swal.fire({
             title: 'HEDEF İMHA EDİLDİ', html: `Birim: <b>${plane.callsign}</b><br>Görev Tamamlandı, Üsse Dönülüyor!`,
@@ -251,7 +254,7 @@ onMounted(async () => {
         isPaused.value = true; isManualRouting.value = false; manualTarget.value = null;
         plane.status = FLIGHT_STATUS.ARRIVED;
         plane.energy = 100; plane.ammo = 2;
-        logFlightRecord(plane, manualTarget.value?.name || "Manuel Hedef");
+        logFlightRecord(plane, plane.missionDestName || "Manuel Hedef");
         mapRoutes.value?.clearAllRoutes();
         Swal.fire({
           title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota ve ikmal tamamlandı.`,

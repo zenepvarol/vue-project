@@ -41,7 +41,7 @@ watch(() => props.currentFlights, (flights) => {
     // 2- Mevcut Marker'ı Güncelleme: (API'den gelen yeni konumları haritaya yansıt)
     else {
       const marker = markers[icao];
-      const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION'].includes(plane.status);
+      const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION', 'EMERGENCY_LANDED', 'STANDBY'].includes(plane.status);
 
       if (plane.isApi && !isSimulatingLocally) {
         // API'den yeni konum geldiğinde uçağı oraya yumuşakça kaydır
