@@ -1,0 +1,13 @@
+<!-- Çekirdek (Core) Katmanı: Bu katman projenin en alt katmanıdır ve hiçbir yere bağımlı değildir. 
+  - Entities: Veritabanı modelleri
+  - Interfaces: Servis ve Repository sözleşmeleri
+  - DTOs: Veri transfer nesneleri bulunur. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

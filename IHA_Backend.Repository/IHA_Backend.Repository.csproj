@@ -1,0 +1,22 @@
+<!-- Veri Erişim (Data Access) Katmanı: Veritabanı ile konuşan tek katmandır.
+  - Context: Veritabanı bağlantısı (EF Core)
+  - Repositories: Veri işleme sınıfları
+  - UnitOfWork: İşlem bütünlüğü yönetimi -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-preview.1.25081.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0-preview.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IHA_Backend.Core\IHA_Backend.Core.csproj" />
+  </ItemGroup>
+
+</Project>

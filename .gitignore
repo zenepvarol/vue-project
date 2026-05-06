@@ -1,0 +1,13 @@
+# .NET (Backend)
+[Bb]in/
+[Oo]bj/
+.vs/
+
+# Node / Vue (Frontend)
+node_modules/
+dist/
+*.local
+
+# Genel
+*.log
+.vscode/
