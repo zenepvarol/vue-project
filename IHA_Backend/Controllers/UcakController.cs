@@ -2,7 +2,8 @@
  * Sadece geçerli bir anahtarı (token) olan kullanıcılar uçak verilerini görebilir. */
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using IHA_Backend.Models;
+using IHA_Backend.Core.Entities;
+using IHA_Backend.Repository.Context;
 using Microsoft.AspNetCore.Authorization;
 
 namespace IHA_Backend.Controllers

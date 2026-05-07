@@ -1,6 +1,7 @@
 /** UsersController.cs - Kullanıcı kimlik bilgilerini doğrulayan ve başarılı oturumlar için 
  * JWT üretimini sağlayan denetleyici. */
-using IHA_Backend.Models;
+using IHA_Backend.Core.Entities;
+using IHA_Backend.Repository.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;

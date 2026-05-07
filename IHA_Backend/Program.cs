@@ -1,7 +1,7 @@
 /** Program.cs - Bu dosya, JWT (JSON Web Token) sisteminin kurallarını belirler.
  * Gelen anahtarların doğruluğunu, süresini ve kim tarafından verildiğini kontrol eder. */
 using System.Text;
-using IHA_Backend.Models;
+using IHA_Backend.Repository.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
