@@ -9,9 +9,9 @@ namespace IHA_Backend.Controllers
     [ApiController]
     public class FlightHistoryController : ControllerBase
     {
-        private readonly UygulamaDbContext _context;
+        private readonly AppDbContext _context;
 
-        public FlightHistoryController(UygulamaDbContext context)
+        public FlightHistoryController(AppDbContext context)
         {
             _context = context;
         }

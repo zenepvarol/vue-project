@@ -15,10 +15,10 @@ namespace IHA_Backend.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly UygulamaDbContext _context;
+        private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
 
-        public UsersController(UygulamaDbContext context, IConfiguration configuration)
+        public UsersController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
             _configuration = configuration;

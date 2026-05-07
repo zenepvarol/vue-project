@@ -9,9 +9,9 @@ namespace IHA_Backend.Controllers
     [ApiController]
     public class AirportsController : ControllerBase
     {
-        private readonly UygulamaDbContext _context;
+        private readonly AppDbContext _context;
 
-        public AirportsController(UygulamaDbContext context)
+        public AirportsController(AppDbContext context)
         {
             _context = context;
         }

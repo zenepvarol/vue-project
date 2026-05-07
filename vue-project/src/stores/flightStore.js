@@ -1,7 +1,7 @@
 /** Pinia kütüphanesi kullanılarak oluşturulan bu depo (store), uçuş verilerinin, kullanıcı
  * tercihlerinin ve global arayüz durumlarının tüm bileşenler arasında senkronize kalmasını sağlar. */
 import { defineStore } from 'pinia';
-import { ucakService } from '@/api/ucakService';
+import { aircraftService } from '@/api/aircraftService';
 import { flightHistoryService } from '@/api/flightHistoryService';
 
 export const useFlightStore = defineStore('flight', {
@@ -39,7 +39,7 @@ export const useFlightStore = defineStore('flight', {
     // API'den verileri çekip store'u güncelle
     async fetchFlights() {
       try {
-        const response = await ucakService.getUcaklar();
+        const response = await aircraftService.getAircrafts();
 
         response.data.forEach(f => {
           const icao = String(f.icao24).toUpperCase();

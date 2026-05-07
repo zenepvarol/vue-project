@@ -4,7 +4,7 @@
 import { watch } from 'vue'; import L from 'leaflet';
 import { getAirportIcon } from '@/utils/mapVisuals';
 import { airportService } from '@/api/airportService';
-import { ucakService } from '@/api/ucakService';
+import { aircraftService } from '@/api/aircraftService';
 
 /** PROPS: Üst bileşenden (MapEngine) gelen aktif Leaflet harita objesi */
 const props = defineProps({ map: Object });
@@ -24,18 +24,18 @@ watch(() => props.map, async (newMap) => {
       const airData = response.data;
 
       // Uçakların başlangıç noktalarını da Ana Üs (Havalimanı) olarak ekle
-      const ucakResponse = await ucakService.getUcaklar();
-      const ucaklar = ucakResponse.data;
+      const aircraftResponse = await aircraftService.getAircrafts();
+      const aircrafts = aircraftResponse.data;
 
-      ucaklar.forEach(ucak => {
-        const baseId = `BASE_${ucak.icao24}`;
+      aircrafts.forEach(aircraft => {
+        const baseId = `BASE_${aircraft.icao24}`;
         // Eğer bu üs daha önce eklenmemişse listeye dahil et
         if (!airData.find(a => a.id === baseId)) {
           airData.push({
             id: baseId,
-            name: `${ucak.callsign || ucak.icao24} Ana Üssü`,
-            lat: parseFloat(ucak.latitude),
-            lon: parseFloat(ucak.longitude),
+            name: `${aircraft.callsign || aircraft.icao24} Ana Üssü`,
+            lat: parseFloat(aircraft.latitude),
+            lon: parseFloat(aircraft.longitude),
             type: 'Base'
           });
         }

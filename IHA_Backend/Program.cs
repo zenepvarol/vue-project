@@ -10,7 +10,7 @@ using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
 // Veritabanı
-builder.Services.AddDbContext<UygulamaDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // CORS Yapılandırması (Frontend'in erişebilmesi için)
