@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using IHA_Backend.Core.Entities;
-using IHA_Backend.Repository.Context;
+using IHA_Backend.Business.Interfaces;
 
 namespace IHA_Backend.Controllers
 {
@@ -9,31 +8,31 @@ namespace IHA_Backend.Controllers
     [ApiController]
     public class AirportsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IAirportService _airportService;
 
-        public AirportsController(AppDbContext context)
+        public AirportsController(IAirportService airportService)
         {
-            _context = context;
+            _airportService = airportService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Airport>>> GetAirports()
         {
-            return await _context.Airports.ToListAsync();
+            var airports = await _airportService.GetAllAsync();
+            return Ok(airports);
         }
 
         [HttpPost]
         public async Task<ActionResult<Airport>> PostAirport(Airport airport)
         {
-            _context.Airports.Add(airport);
-            await _context.SaveChangesAsync();
-            return Ok(airport);
+            var result = await _airportService.AddAsync(airport);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Airport>> GetAirport(string id)
         {
-            var airport = await _context.Airports.FindAsync(id);
+            var airport = await _airportService.GetByIdAsync(id);
             if (airport == null) return NotFound();
             return airport;
         }
@@ -41,11 +40,10 @@ namespace IHA_Backend.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAirport(string id)
         {
-            var airport = await _context.Airports.FindAsync(id);
+            var airport = await _airportService.GetByIdAsync(id);
             if (airport == null) return NotFound();
 
-            _context.Airports.Remove(airport);
-            await _context.SaveChangesAsync();
+            await _airportService.DeleteAsync(id);
             return NoContent();
         }
     }

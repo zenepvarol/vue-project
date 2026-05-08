@@ -2,6 +2,8 @@
  * Gelen anahtarların doğruluğunu, süresini ve kim tarafından verildiğini kontrol eder. */
 using System.Text;
 using IHA_Backend.Repository.Context;
+using IHA_Backend.Business.Interfaces;
+using IHA_Backend.Business.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -12,6 +14,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Veritabanı
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Business Servisleri (DI - Dependency Injection)
+builder.Services.AddScoped<IAirportService, AirportService>();
+builder.Services.AddScoped<IAircraftService, AircraftService>();
+builder.Services.AddScoped<IFlightHistoryService, FlightHistoryService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 // CORS Yapılandırması (Frontend'in erişebilmesi için)
 builder.Services.AddCors(options =>
