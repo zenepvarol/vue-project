@@ -1,7 +1,6 @@
 <!-- Çekirdek (Core) Katmanı: Bu katman projenin en alt katmanıdır ve hiçbir yere bağımlı değildir. 
-  - Entities: Veritabanı modelleri
-  - Interfaces: Servis ve Repository sözleşmeleri
-  - DTOs: Veri transfer nesneleri bulunur. -->
+  - Entities: Veritabanı modelleri bulunur.
+  - Her katman kendi interface'ini kendi içinde barındırır (DI prensibi). -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>

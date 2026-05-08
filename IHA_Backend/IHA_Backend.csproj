@@ -20,10 +20,11 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\IHA_Backend.Core\IHA_Backend.Core.csproj" />
     <ProjectReference Include="..\IHA_Backend.Repository\IHA_Backend.Repository.csproj" />
-    <ProjectReference Include="..\IHA_Backend.Service\IHA_Backend.Service.csproj" />
+    <ProjectReference Include="..\IHA_Backend.Business\IHA_Backend.Business.csproj" />
   </ItemGroup>
 
 </Project>

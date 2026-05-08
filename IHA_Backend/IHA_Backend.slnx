@@ -1,6 +1,6 @@
 <Solution>
+  <Project Path="../IHA_Backend.Business/IHA_Backend.Business.csproj" />
   <Project Path="../IHA_Backend.Core/IHA_Backend.Core.csproj" />
   <Project Path="../IHA_Backend.Repository/IHA_Backend.Repository.csproj" />
-  <Project Path="../IHA_Backend.Service/IHA_Backend.Service.csproj" />
   <Project Path="IHA_Backend.csproj" />
 </Solution>
