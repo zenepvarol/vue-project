@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -12,7 +12,7 @@ namespace IHA_Backend.Migrations
         {
             migrationBuilder.AddColumn<bool>(
                 name: "IsSiha",
-                table: "Ucaklar",
+                table: "Aircrafts",
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
@@ -23,7 +23,7 @@ namespace IHA_Backend.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "IsSiha",
-                table: "Ucaklar");
+                table: "Aircrafts");
         }
     }
 }
