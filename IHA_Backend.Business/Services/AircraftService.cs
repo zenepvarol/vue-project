@@ -1,6 +1,8 @@
 using IHA_Backend.Business.Interfaces;
 using IHA_Backend.Core.Entities;
 using IHA_Backend.Repository.Context;
+using IHA_Backend.Repository.Interfaces;
+using IHA_Backend.Repository.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace IHA_Backend.Business.Services
@@ -12,15 +14,17 @@ namespace IHA_Backend.Business.Services
     public class AircraftService : IAircraftService
     {
         private readonly AppDbContext _context;
+        private readonly IGenericRepository<Aircraft> _genericRepository;
 
-        public AircraftService(AppDbContext context)
+        public AircraftService(AppDbContext context, IGenericRepository<Aircraft> genericRepository)
         {
             _context = context;
+            _genericRepository = genericRepository;
         }
 
         public async Task<IEnumerable<Aircraft>> GetAllAsync()
         {
-            return await _context.Aircrafts.ToListAsync();
+            return await _genericRepository.GetAllAsync();
         }
 
         public async Task<Aircraft> AddOrUpdateAsync(Aircraft aircraft)
