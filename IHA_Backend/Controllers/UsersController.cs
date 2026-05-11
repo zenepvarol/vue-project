@@ -60,6 +60,18 @@ namespace IHA_Backend.Controllers
             }
             return Ok(result);
         }
+
+        // DELETE: api/Users/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var result = await _userService.DeleteAsync(id);
+            if (!result)
+            {
+                return NotFound("Kullanıcı bulunamadı.");
+            }
+            return Ok(new { message = "Kullanıcı başarıyla silindi." });
+        }
     }
 
     public class LoginRequest

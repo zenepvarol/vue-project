@@ -60,6 +60,16 @@ namespace IHA_Backend.Business.Services
             };
         }
 
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var user = await _genericRepository.GetByIdAsync(id);
+            if (user == null) return false;
+
+            _genericRepository.Delete(user);
+            await _genericRepository.SaveChangesAsync();
+            return true;
+        }
+
         /// <summary>
         /// Kullanıcıya ait kimlik bilgilerini içeren şifreli JWT anahtarını üretir.
         /// </summary>
