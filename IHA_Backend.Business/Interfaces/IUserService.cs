@@ -1,15 +1,13 @@
 using IHA_Backend.Core.Entities;
+using IHA_Backend.Core.DTOs;
 
 namespace IHA_Backend.Business.Interfaces
 {
-    /// <summary>
-    /// Kullanıcı işlemleri ve kimlik doğrulama için iş mantığı sözleşmesi.
-    /// </summary>
     public interface IUserService
     {
-        Task<IEnumerable<User>> GetAllAsync();
+        Task<IEnumerable<UserDto>> GetAllAsync();
         Task<User?> LoginAsync(string username, string password);
-        Task<User?> RegisterAsync(User user);
+        Task<UserDto?> RegisterAsync(User user);
         string GenerateJwtToken(User user);
     }
 }

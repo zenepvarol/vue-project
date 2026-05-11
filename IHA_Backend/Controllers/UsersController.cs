@@ -1,6 +1,7 @@
 /** UsersController.cs - Kullanıcı kimlik bilgilerini doğrulayan ve başarılı oturumlar için 
  * JWT üretimini sağlayan denetleyici. */
 using IHA_Backend.Core.Entities;
+using IHA_Backend.Core.DTOs;
 using IHA_Backend.Business.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,13 +37,13 @@ namespace IHA_Backend.Controllers
                 username = user.Username,
                 role = user.Role,
                 isAuthenticated = true,
-                token = token
+                token = token // İstemci tarafında yetkilendirme işlemleri için kullanılacak anahtar.
             });
         }
 
         // GET: api/Users
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
             var users = await _userService.GetAllAsync();
             return Ok(users);
@@ -50,7 +51,7 @@ namespace IHA_Backend.Controllers
 
         // POST: api/Users/register
         [HttpPost("register")]
-        public async Task<ActionResult<User>> Register([FromBody] User user)
+        public async Task<ActionResult<UserDto>> Register([FromBody] User user)
         {
             var result = await _userService.RegisterAsync(user);
             if (result == null)

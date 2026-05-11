@@ -1,5 +1,6 @@
 using IHA_Backend.Business.Interfaces;
 using IHA_Backend.Core.Entities;
+using IHA_Backend.Core.DTOs;
 using IHA_Backend.Repository.Context;
 using IHA_Backend.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -11,10 +12,6 @@ using System.Text;
 
 namespace IHA_Backend.Business.Services
 {
-    /// <summary>
-    /// Kullanıcı iş mantığı servisi.
-    /// Kimlik doğrulama ve JWT üretimini yönetir.
-    /// </summary>
     public class UserService : IUserService
     {
         private readonly AppDbContext _context;
@@ -28,9 +25,15 @@ namespace IHA_Backend.Business.Services
             _configuration = configuration;
         }
 
-        public async Task<IEnumerable<User>> GetAllAsync()
+        public async Task<IEnumerable<UserDto>> GetAllAsync()
         {
-            return await _genericRepository.GetAllAsync();
+            var users = await _genericRepository.GetAllAsync();
+            return users.Select(u => new UserDto
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Role = u.Role
+            });
         }
 
         public async Task<User?> LoginAsync(string username, string password)
@@ -39,7 +42,7 @@ namespace IHA_Backend.Business.Services
                 .FirstOrDefaultAsync(u => u.Username == username && u.Password == password);
         }
 
-        public async Task<User?> RegisterAsync(User user)
+        public async Task<UserDto?> RegisterAsync(User user)
         {
             if (await _context.Users.AnyAsync(u => u.Username == user.Username))
             {
@@ -48,7 +51,13 @@ namespace IHA_Backend.Business.Services
 
             await _genericRepository.AddAsync(user);
             await _genericRepository.SaveChangesAsync();
-            return user;
+
+            return new UserDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Role = user.Role
+            };
         }
 
         /// <summary>
