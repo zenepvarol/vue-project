@@ -1,6 +1,7 @@
 using IHA_Backend.Business.Interfaces;
 using IHA_Backend.Core.Entities;
 using IHA_Backend.Repository.Context;
+using IHA_Backend.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace IHA_Backend.Business.Services
@@ -12,15 +13,17 @@ namespace IHA_Backend.Business.Services
     public class AirportService : IAirportService
     {
         private readonly AppDbContext _context;
+        private readonly IGenericRepository<Airport> _genericRepository;
 
-        public AirportService(AppDbContext context)
+        public AirportService(AppDbContext context, IGenericRepository<Airport> genericRepository)
         {
             _context = context;
+            _genericRepository = genericRepository;
         }
 
         public async Task<IEnumerable<Airport>> GetAllAsync()
         {
-            return await _context.Airports.ToListAsync();
+            return await _genericRepository.GetAllAsync();
         }
 
         public async Task<Airport?> GetByIdAsync(string id)
@@ -30,8 +33,8 @@ namespace IHA_Backend.Business.Services
 
         public async Task<Airport> AddAsync(Airport airport)
         {
-            _context.Airports.Add(airport);
-            await _context.SaveChangesAsync();
+            await _genericRepository.AddAsync(airport);
+            await _genericRepository.SaveChangesAsync();
             return airport;
         }
 

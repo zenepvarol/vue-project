@@ -1,6 +1,7 @@
 using IHA_Backend.Business.Interfaces;
 using IHA_Backend.Core.Entities;
 using IHA_Backend.Repository.Context;
+using IHA_Backend.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -17,17 +18,19 @@ namespace IHA_Backend.Business.Services
     public class UserService : IUserService
     {
         private readonly AppDbContext _context;
+        private readonly IGenericRepository<User> _genericRepository;
         private readonly IConfiguration _configuration;
 
-        public UserService(AppDbContext context, IConfiguration configuration)
+        public UserService(AppDbContext context, IGenericRepository<User> genericRepository, IConfiguration configuration)
         {
             _context = context;
+            _genericRepository = genericRepository;
             _configuration = configuration;
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
         {
-            return await _context.Users.ToListAsync();
+            return await _genericRepository.GetAllAsync();
         }
 
         public async Task<User?> LoginAsync(string username, string password)
@@ -43,8 +46,8 @@ namespace IHA_Backend.Business.Services
                 return null; // Kullanıcı adı zaten alınmış
             }
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            await _genericRepository.AddAsync(user);
+            await _genericRepository.SaveChangesAsync();
             return user;
         }
 

@@ -1,6 +1,7 @@
 using IHA_Backend.Business.Interfaces;
 using IHA_Backend.Core.Entities;
 using IHA_Backend.Repository.Context;
+using IHA_Backend.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace IHA_Backend.Business.Services
@@ -11,10 +12,12 @@ namespace IHA_Backend.Business.Services
     public class FlightHistoryService : IFlightHistoryService
     {
         private readonly AppDbContext _context;
+        private readonly IGenericRepository<FlightHistory> _genericRepository;
 
-        public FlightHistoryService(AppDbContext context)
+        public FlightHistoryService(AppDbContext context, IGenericRepository<FlightHistory> genericRepository)
         {
             _context = context;
+            _genericRepository = genericRepository;
         }
 
         public async Task<IEnumerable<FlightHistory>> GetAllAsync()
@@ -35,8 +38,8 @@ namespace IHA_Backend.Business.Services
         public async Task<FlightHistory> AddAsync(FlightHistory history)
         {
             history.FlightDate = DateTime.UtcNow;
-            _context.FlightHistories.Add(history);
-            await _context.SaveChangesAsync();
+            await _genericRepository.AddAsync(history);
+            await _genericRepository.SaveChangesAsync();
             return history;
         }
 
