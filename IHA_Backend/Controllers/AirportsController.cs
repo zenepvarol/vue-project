@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using IHA_Backend.Core.Entities;
 using IHA_Backend.Business.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IHA_Backend.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class AirportsController : ControllerBase
@@ -22,6 +24,7 @@ namespace IHA_Backend.Controllers
             return Ok(airports);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<Airport>> PostAirport(Airport airport)
         {
@@ -37,6 +40,7 @@ namespace IHA_Backend.Controllers
             return airport;
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAirport(string id)
         {

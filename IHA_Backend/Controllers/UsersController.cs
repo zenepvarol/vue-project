@@ -4,6 +4,7 @@ using IHA_Backend.Core.Entities;
 using IHA_Backend.Core.DTOs;
 using IHA_Backend.Business.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IHA_Backend.Controllers
 {
@@ -62,6 +63,7 @@ namespace IHA_Backend.Controllers
         }
 
         // DELETE: api/Users/5
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {

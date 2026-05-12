@@ -28,6 +28,7 @@ namespace IHA_Backend.Controllers
         }
 
         // Yeni bir uçak verisi kaydet veya mevcut olanı güncelle (Upsert Mantığı)
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<Aircraft>> PostAircraft(Aircraft aircraft)
         {
@@ -36,6 +37,7 @@ namespace IHA_Backend.Controllers
         }
 
         // Belirli bir ID'ye göre uçağı sil
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAircraft(int id)
         {
@@ -44,6 +46,7 @@ namespace IHA_Backend.Controllers
         }
 
         // Bütün uçakları sil
+        [Authorize(Roles = "Admin")]
         [HttpDelete("all")]
         public async Task<IActionResult> DeleteAllAircrafts()
         {

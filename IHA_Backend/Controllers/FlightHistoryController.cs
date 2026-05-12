@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using IHA_Backend.Core.Entities;
 using IHA_Backend.Business.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IHA_Backend.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class FlightHistoryController : ControllerBase
@@ -32,6 +34,7 @@ namespace IHA_Backend.Controllers
         }
 
         // ADIM 5: Gelen paketi karşıla, zaman damgasını bas ve veritabanına kalıcı olarak kaydet
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<FlightHistory>> PostFlightHistory(FlightHistory history)
         {
@@ -40,6 +43,7 @@ namespace IHA_Backend.Controllers
         }
 
         // Bir uçağın tüm geçmişini sil
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{icao}")]
         public async Task<IActionResult> DeleteFlightHistoryByIcao(string icao)
         {
@@ -49,6 +53,7 @@ namespace IHA_Backend.Controllers
         }
 
         // Bütün uçuş geçmişini sil
+        [Authorize(Roles = "Admin")]
         [HttpDelete("all")]
         public async Task<IActionResult> DeleteAllFlightHistory()
         {
