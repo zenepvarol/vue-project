@@ -49,6 +49,12 @@ namespace IHA_Backend.Business.Services
                 return null; // Kullanıcı adı zaten alınmış
             }
 
+            // Dışarıdan rol belirtilmemişse varsayılan olarak "Viewer" ata
+            if (string.IsNullOrWhiteSpace(user.Role))
+            {
+                user.Role = "Viewer";
+            }
+
             await _genericRepository.AddAsync(user);
             await _genericRepository.SaveChangesAsync();
 
