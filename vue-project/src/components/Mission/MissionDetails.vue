@@ -113,7 +113,8 @@
         </div>
       </div>
 
-      <div class="action-section d-flex flex-column gap-2 mt-4">
+      <!-- SADECE ADMİNLER GÖREBİLİR -->
+      <div v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="action-section d-flex flex-column gap-2 mt-4">
         <v-btn
           v-if="(animationSteps[activeIcao] > 0 || ((myFleetIcaos.includes(String(activeIcao)) || selectedFlight.isSiha) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
           color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')">
@@ -135,7 +136,8 @@
         </div>
       </div>
 
-      <div class="manual-target-input mt-8 pt-4" style="border-top: 1px solid rgba(0,0,0,0.1);">
+      <!-- SADECE ADMİNLER GÖREBİLİR -->
+      <div v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="manual-target-input mt-8 pt-4" style="border-top: 1px solid rgba(0,0,0,0.1);">
         <h4 style="margin-bottom: 20px !important; font-size: 0.95rem; font-weight: bold;">Operasyonu Güncelle</h4>
         <v-autocomplete v-model="manualAirportId" label="Yeni Hedef Seç" variant="outlined" density="compact"
           :items="[{ id: 'MANUAL_COORD', name: 'Manuel Koordinat Girişi' }, ...airports]"
@@ -167,9 +169,11 @@
 <script setup>
 import { computed, watch } from 'vue';
 import { useFlightStore } from '@/stores/flightStore'; // Uçuş verilerine erişmek için store'u içe aktarır
+import { useAuthStore } from '@/stores/authStore'; // Kullanıcı yetkilerini kontrol etmek için
 import FlightHistoryList from './FlightHistoryList.vue'; // Geçmiş listesi bileşenini dahil eder
 
 const store = useFlightStore(); // Store'u bileşen içinde kullanıma hazır hale getirir
+const authStore = useAuthStore(); // Yetki kontrolü için store'u başlat
 
 const props = defineProps({
   selectedFlight: Object,

@@ -16,7 +16,7 @@ namespace IHA_Backend.Controllers
 
         // Bütün uçakları listele
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Aircraft>>> GetAircrafts()
+        public async Task<ActionResult<IEnumerable< Aircraft>>> GetAircrafts()
         {
             var aircrafts = await _aircraftService.GetAllAsync();
             return Ok(aircrafts);

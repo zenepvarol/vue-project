@@ -1,19 +1,17 @@
-import axios from 'axios';
-
-const API_URL = 'https://localhost:7089/api/FlightHistory';
+import api from './index';
 
 export const flightHistoryService = {
   getAllHistory() {
-    return axios.get(API_URL);
+    return api.get('/FlightHistory');
   },
   getHistoryByIcao(icao) {
-    return axios.get(`${API_URL}/${icao}`);
+    return api.get(`/FlightHistory/${icao}`);
   },
   // Veri HTTP POST isteği ile backend portuna (7089) gider
   saveFlight(flightData) {
-    return axios.post(API_URL, flightData);
+    return api.post('/FlightHistory', flightData);
   },
   deleteHistory(icao) {
-    return axios.delete(`${API_URL}/${icao}`);
+    return api.delete(`/FlightHistory/${icao}`);
   }
 };

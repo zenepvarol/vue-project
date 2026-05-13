@@ -1,6 +1,6 @@
 <template>
-  <!-- v-sheet: Sağ panel konteyneri. pt-16 ile içeriği üstten 64px aşağı iter. -->
-  <v-sheet component="aside" class="sidebar right pt-16" style="overflow-y: auto; max-height: 100vh;">
+  <!-- v-sheet: Sağ panel konteyneri. Sadece uçak seçiliyse VEYA kullanıcı Admin ise gösterilir -->
+  <v-sheet v-if="authStore.user?.role?.toLowerCase() === 'admin' || selectedFlight" component="aside" class="sidebar right pt-16" style="overflow-y: auto; max-height: 100vh;">
     
     <MissionTargeting v-if="!selectedFlight" v-model:destinationAirportId="destinationAirportId" v-model:destLat="destLat"
       v-model:destLon="destLon" :airports="airports" @assign-mission="$emit('assign-mission')" />
@@ -22,6 +22,9 @@
  * Hedef Seçimi ve Uçuş Detayları bileşenlerini yönetir. */
 import MissionTargeting from './MissionTargeting.vue';
 import MissionDetails from './MissionDetails.vue';
+import { useAuthStore } from '@/stores/authStore';
+
+const authStore = useAuthStore();
 
 // PROPS: Üst bileşenden gelen veriler
 defineProps({

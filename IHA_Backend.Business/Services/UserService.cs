@@ -84,11 +84,17 @@ namespace IHA_Backend.Business.Services
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
+            string normalizedRole = user.Role;
+            if (string.Equals(normalizedRole, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedRole = "Admin";
+            }
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Role, normalizedRole)
             };
 
             var token = new JwtSecurityToken(
