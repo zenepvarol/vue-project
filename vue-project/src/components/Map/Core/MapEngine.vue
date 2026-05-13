@@ -43,6 +43,7 @@ import MapEmergency from '../Features/MapEmergency.vue';
 import MapMission from '../Features/MapMission.vue';
 import MapManualControl from '../Features/MapManualControl.vue';
 import MapNavigator from './MapNavigator.vue';
+import { telemetryService } from '@/api/telemetryService';
 
 const props = defineProps({ myFleetIcaos: Array, selectedFlight: Object });
 const currentFlights = defineModel('currentFlights'), activeIcao = defineModel('activeIcao'), isPaused = defineModel('isPaused');
@@ -133,6 +134,27 @@ onMounted(async () => {
       mapTanker.value.update(icao, isPaused.value, finalTarget);
     }
 
+    // --- Canlı Telemetri Senkronizasyonu (2 saniyelik periyotlarla Backend'e veri iletimi) ---
+    if (!plane.lastTelemetryUpdate || Date.now() - plane.lastTelemetryUpdate > 2000) {
+      plane.lastTelemetryUpdate = Date.now();
+      // Standby haricindeki uçuş durumlarında güncel verileri ilet
+      if (plane.status !== FLIGHT_STATUS.STANDBY && plane.status !== FLIGHT_STATUS.COMPLETED && 
+          plane.status !== FLIGHT_STATUS.EMERGENCY_LANDED && plane.status !== FLIGHT_STATUS.ARRIVED) {
+        telemetryService.updateTelemetry({
+          icao: icao,
+          lat: plane.lat,
+          lon: plane.lon,
+          velocity: plane.velocity,
+          energy: plane.energy,
+          altitude: plane.baroaltitude,
+          heading: plane.heading,
+          status: plane.status,
+          callsign: plane.callsign || 'Bilinmeyen'
+        }).catch(err => console.error('Telemetri verisi iletilemedi:', err));
+      }
+    }
+    // -----------------------------------------------------------------------------------------
+
     // 1. Durum: Acil durum aktif (En yakın havalimanına acil iniş)
     if (isEmergency.value && nearestAirport.value) {
       const targetPos = { lat: nearestAirport.value.lat, lon: nearestAirport.value.lon };
@@ -164,6 +186,7 @@ onMounted(async () => {
           plane.status = FLIGHT_STATUS.STANDBY;
           animationSteps.value[icao] = 0;
           logFlightRecord(plane, "Ana Merkez (Acil)");
+          telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
         } else {
           plane.status = FLIGHT_STATUS.EMERGENCY_LANDED;
           const landingSpot = nearestAirport.value?.id || "ACIL";
@@ -237,6 +260,7 @@ onMounted(async () => {
         isReturningToStart.value = false; isPaused.value = true; animationSteps.value[icao] = 0;
         logFlightRecord(plane, "Ana Merkez");
         drawFullRoute(icao);
+        telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
         Swal.fire({ title: 'Üsse Dönüldü', text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
       }
       // 4. Durum: Haritada manuel olarak tanımlanan özel bir rotaya/koordinata uçuş
@@ -256,6 +280,7 @@ onMounted(async () => {
         plane.energy = 100; plane.ammo = 2;
         logFlightRecord(plane, plane.missionDestName || "Manuel Hedef");
         mapRoutes.value?.clearAllRoutes();
+        telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
         Swal.fire({
           title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota ve ikmal tamamlandı.`,
           icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
@@ -273,6 +298,7 @@ onMounted(async () => {
         isPaused.value = true;
         animationSteps.value[icao] = 0;
         logFlightRecord(plane, "Rota Sonu");
+        telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
         Swal.fire({ title: 'GÖREV TAMAMLANDI', text: 'İkmal yapıldı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         return;
       }
