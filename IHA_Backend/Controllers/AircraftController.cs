@@ -10,14 +10,9 @@ namespace IHA_Backend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class AircraftController : ControllerBase
+    public class AircraftController(IAircraftService aircraftService) : ControllerBase
     {
-        private readonly IAircraftService _aircraftService;
-
-        public AircraftController(IAircraftService aircraftService)
-        {
-            _aircraftService = aircraftService;
-        }
+        private readonly IAircraftService _aircraftService = aircraftService;
 
         // Bütün uçakları listele
         [HttpGet]

@@ -8,14 +8,9 @@ namespace IHA_Backend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class AirportsController : ControllerBase
+    public class AirportsController(IAirportService airportService) : ControllerBase
     {
-        private readonly IAirportService _airportService;
-
-        public AirportsController(IAirportService airportService)
-        {
-            _airportService = airportService;
-        }
+        private readonly IAirportService _airportService = airportService;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Airport>>> GetAirports()

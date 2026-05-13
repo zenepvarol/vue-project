@@ -8,14 +8,9 @@ namespace IHA_Backend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class FlightHistoryController : ControllerBase
+    public class FlightHistoryController(IFlightHistoryService flightHistoryService) : ControllerBase
     {
-        private readonly IFlightHistoryService _flightHistoryService;
-
-        public FlightHistoryController(IFlightHistoryService flightHistoryService)
-        {
-            _flightHistoryService = flightHistoryService;
-        }
+        private readonly IFlightHistoryService _flightHistoryService = flightHistoryService;
 
         // Bütün uçuş geçmişini listele
         [HttpGet]
