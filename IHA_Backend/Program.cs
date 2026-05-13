@@ -23,6 +23,7 @@ builder.Services.AddScoped<IAirportService, AirportService>();
 builder.Services.AddScoped<IAircraftService, AircraftService>();
 builder.Services.AddScoped<IFlightHistoryService, FlightHistoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<ITelemetryService, TelemetryService>(); // Telemetri Servisi (Uygulama boyunca bellekte tek bir liste tutar)
 
 // CORS Yapılandırması (Frontend'in erişebilmesi için)
 builder.Services.AddCors(options =>
