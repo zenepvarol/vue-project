@@ -22,7 +22,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
+import { useFlightStore } from '@/stores/flightStore';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
@@ -88,6 +89,55 @@ const drawFullRoute = (icao) => {
 
 const focusFlight = (f) => mapNavigator.value?.focusFlight(f);
 
+const store = useFlightStore();
+
+// CANLI İZLEME (Watcher)
+// Backend'den gelen telemetri verileri değiştikçe haritadaki uçakları günceller.
+watch(() => store.telemetryFlights, (newTelemetry) => {
+  Object.values(newTelemetry).forEach(f => {
+    const icao = String(f.icao);
+    
+    const isSimulatingHere = props.myFleetIcaos.includes(icao) && !isPaused.value && activeIcao.value === icao;
+    if (isSimulatingHere) return;
+
+    const existingPlane = currentFlights.value[icao];
+    const newPos = [f.lat, f.lon];
+
+    if (!existingPlane) {
+      // Radar ekranına yeni giren uçağı ekle
+      currentFlights.value[icao] = {
+        ...f,
+        icao24: icao,
+        isRemote: true,
+        status: f.status || 'ACTIVE'
+      };
+    } else {
+      // Mevcut yabancı uçağın konumunu ve verilerini güncelle
+      existingPlane.lat = f.lat;
+      existingPlane.lon = f.lon;
+      existingPlane.velocity = f.velocity;
+      existingPlane.baroaltitude = f.altitude;
+      existingPlane.heading = f.heading;
+      existingPlane.energy = f.energy;
+      existingPlane.status = f.status;
+
+      // HARİTADA AKICI HAREKET: Telemetri verisi 2 saniyede bir geldiği için, uçağın marker'ı o noktaya kayar.
+      const marker = mapPlanes.value?.markers[icao];
+      if (marker) {
+        marker.slideTo(newPos, { duration: 2000 }); // Bir sonraki veriye kadar yavaşça kayacak ucak
+        marker.setRotationAngle(f.heading - 45);
+      }
+    }
+  });
+
+  // Telemetriden silinen (inen) uçakları haritadan kaldır
+  Object.keys(currentFlights.value).forEach(icao => {
+    if (currentFlights.value[icao].isRemote && !newTelemetry[icao]) {
+      delete currentFlights.value[icao];
+    }
+  });
+}, { deep: true });
+
 // Bileşen ayağa kalktığında Leaflet haritasını oluşturur ve JSON verilerini yükler
 onMounted(async () => {
   // Dünya sınırlarını sabitleyip temel haritayı çizer
@@ -99,6 +149,15 @@ onMounted(async () => {
   setInterval(() => {
 
     const icao = activeIcao.value;
+    
+    // Her 2 saniyede bir uçakları kontrol et
+    const now = Date.now();
+    if (!window._lastTelemetryFetch || now - window._lastTelemetryFetch > 2000) {
+      window._lastTelemetryFetch = now;
+      const store = useFlightStore();
+      store.fetchActiveTelemetry(); // Backend'deki tüm uçuşları çek
+    }
+
     if (!icao || isPaused.value || !currentFlights.value[icao]) return;
 
     // Eksik olan rota veya adım verilerini çalışma anında tamamla (Lazy Initialization)

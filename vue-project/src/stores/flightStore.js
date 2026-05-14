@@ -3,6 +3,7 @@
 import { defineStore } from 'pinia';
 import { aircraftService } from '@/api/aircraftService';
 import { flightHistoryService } from '@/api/flightHistoryService';
+import { telemetryService } from '@/api/telemetryService';
 
 export const useFlightStore = defineStore('flight', {
   /** STATE: Uygulamanın belleğinde tutulan reaktif veri tabanıdır.
@@ -13,7 +14,8 @@ export const useFlightStore = defineStore('flight', {
     sidebarOpen: true, // Sol panelin (Flight List) açık/kapalı olma durumu
     activeIcao: null, // Haritada ve sağ panelde odaklanılan uçağın ICAO kodu
     currentFlights: {}, // Havada olan tüm aktif İHA/uçak verilerinin tutulduğu obje
-    selectedFlightHistory: [] // Seçili uçağın geçmiş uçuş kayıtları
+    selectedFlightHistory: [], // Seçili uçağın geçmiş uçuş kayıtları
+    telemetryFlights: {} // Backend RAM'inden gelen anlık canlı uçuş verileri
   }),
 
   /** GETTERS: Mevcut veriden (state) türetilen hesaplanmış (computed) değerlerdir.
@@ -104,6 +106,22 @@ export const useFlightStore = defineStore('flight', {
         }
       } catch (error) {
         console.error("Uçuş geçmişi kaydedilemedi:", error);
+      }
+    },
+
+    // Backend RAM'indeki (Telemetri) canlı uçuşları çeker
+    async fetchActiveTelemetry() {
+      try {
+        const response = await telemetryService.getActiveFlights();
+        const telemetryData = {};
+        
+        response.data.forEach(f => {
+          telemetryData[f.icao] = f;
+        });
+
+        this.telemetryFlights = telemetryData;
+      } catch (error) {
+        console.warn("Canlı telemetri verileri alınamadı:", error);
       }
     }
   }
