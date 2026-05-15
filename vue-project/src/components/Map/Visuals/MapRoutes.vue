@@ -17,12 +17,19 @@ const props = defineProps({
 const routeLayer = L.layerGroup();
 // Özel rota referansları
 const activeRoutes = {}; // Her uçağın arkasındaki canlı izler
-const missionPathLayer = ref(null); // Aktif görev rotası (kesikli çizgi vb.)
+const missionPaths = {}; // Her uçağın aktif görev rotaları (ICAO -> LayerGroup)
 const emergencyRoute = ref(null);   // Acil iniş rotası
 
 /** METOD: Tüm rotaları ve katmanları temizler */
 const clearAllRoutes = () => {
   routeLayer.clearLayers();
+  // Tüm görev rotalarını temizle
+  Object.values(missionPaths).forEach(layer => {
+    if (props.map) props.map.removeLayer(layer);
+  });
+  // Objenin içini boşalt
+  for (let icao in missionPaths) delete missionPaths[icao];
+
   if (emergencyRoute.value && props.map) {
     props.map.removeLayer(emergencyRoute.value);
     emergencyRoute.value = null;
@@ -45,14 +52,16 @@ const resetActivePath = (icao) => {
 /** METOD: Görev rotasını (Hedef çizgisi) çizer */
 const drawMissionRoute = (plane, targetPos) => {
   if (!props.map) return;
-  if (missionPathLayer.value) props.map.removeLayer(missionPathLayer.value);
+  const icao = plane.icao || plane.icao24;
+  
+  // Eğer bu uçağın zaten bir rotası varsa haritadan kaldır
+  if (missionPaths[icao]) props.map.removeLayer(missionPaths[icao]);
 
   // Başlangıç ve hedef koordinatlarını obje formatına hazırla
   const startCoord = { lat: plane.lat, lon: plane.lon };
   const targetCoord = { lat: targetPos.lat, lon: targetPos.lon };
 
   // Slerp ile kavisli önizleme yolu oluştur (Preview)
-  // Eskiden düz çizgi olan bu kısım artık 50 ara noktadan oluşan kavisli bir hat.
   const previewPoints = [];
   for (let i = 0; i <= 50; i++) {
     const pos = interpolateSlerp(startCoord, targetCoord, i / 50);
@@ -68,7 +77,7 @@ const drawMissionRoute = (plane, targetPos) => {
   const targetLatLng = [targetPos.lat, targetPos.lon];
   const targetCircle = L.circleMarker(targetLatLng, {
     radius: 8, color: '#e74c3c', fillOpacity: 1, weight: 2
-  }).bindPopup('<b>BOMBALAMA HEDEFİ</b>');
+  }).bindPopup(`<b>HEDEF (${icao})</b>`);
 
   // Uçağın ilerledikçe arkasında bıraktığı kırmızı katı çizgi (Canlı takip)
   const progressLine = L.polyline([[plane.lat, plane.lon]], {
@@ -76,8 +85,43 @@ const drawMissionRoute = (plane, targetPos) => {
   });
 
   // Katmanları birleştirip haritaya ekle
-  missionPathLayer.value = L.layerGroup([previewLine, targetCircle, progressLine]).addTo(props.map);
+  missionPaths[icao] = L.layerGroup([previewLine, targetCircle, progressLine]).addTo(props.map);
   return progressLine;
+};
+
+/** METOD: Telemetriden gelen uzak uçağın rotasını günceller veya çizer */
+const updateRemoteMissionRoute = (icao, planeLat, planeLon, destLat, destLon) => {
+  if (!props.map || !destLat || !destLon) {
+    // Eğer hedef yoksa uçağın eski rotasını temizle
+    if (missionPaths[icao]) {
+      props.map.removeLayer(missionPaths[icao]);
+      delete missionPaths[icao];
+    }
+    return;
+  }
+
+  // Uzak uçaklara kavisli (Slerp) hedef çizgisi çiziyoruz (Fizikle uyumlu olması için)
+  if (missionPaths[icao]) props.map.removeLayer(missionPaths[icao]);
+
+  const points = [];
+  const startPos = { lat: planeLat, lon: planeLon };
+  const endPos = { lat: destLat, lon: destLon };
+  
+  // 30 noktadan oluşan kavisli bir hat oluştur
+  for (let i = 0; i <= 30; i++) {
+    const pos = interpolateSlerp(startPos, endPos, i / 30);
+    points.push([pos.lat, pos.lon]);
+  }
+
+  const previewLine = L.polyline(points, {
+    color: '#3498db', weight: 3, dashArray: '5, 10', opacity: 0.6
+  });
+
+  const targetCircle = L.circleMarker([destLat, destLon], {
+    radius: 5, color: '#3498db', fillOpacity: 0.8, weight: 1
+  });
+
+  missionPaths[icao] = L.layerGroup([previewLine, targetCircle]).addTo(props.map);
 };
 
 /** METOD: Seçili uçağın tüm geçmiş ve gelecek rotasını haritaya döker */
@@ -118,16 +162,17 @@ onUnmounted(() => {
 
 // Görev ilerlemesini (çizgi takibi) günceller
 const updateMissionProgress = (plane) => {
-  if (missionPathLayer.value) {
-    const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+  const icao = plane.icao || plane.icao24;
+  if (missionPaths[icao]) {
+    const progressLine = missionPaths[icao].getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
     if (progressLine) progressLine.addLatLng([plane.lat, plane.lon]);
   }
 };
 
 //Görev tamamlandığında çizgiyi yeşil yapar
-const setMissionSuccess = () => {
-  if (missionPathLayer.value) {
-    const progressLine = missionPathLayer.value.getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
+const setMissionSuccess = (icao) => {
+  if (missionPaths[icao]) {
+    const progressLine = missionPaths[icao].getLayers().find(l => l instanceof L.Polyline && !l.options.dashArray);
     if (progressLine) progressLine.setStyle({ color: '#2ecc71', dashArray: null });
   }
 };
@@ -156,11 +201,12 @@ defineExpose({
   clearAllRoutes,
   resetActivePath,
   drawMissionRoute,
+  updateRemoteMissionRoute,
   drawFullRoute,
   updateMissionProgress,
   setMissionSuccess,
   setEmergencyRoute,
-  missionPathLayer,
+  missionPaths,
   emergencyRoute,
   activeRoutes
 });

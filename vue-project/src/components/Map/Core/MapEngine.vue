@@ -121,6 +121,10 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
       existingPlane.energy = f.energy;
       existingPlane.status = f.status;
 
+      // HARİTADA CANLI ROTA ÇİZİMİ (Hedef Çizgisi)
+      // Telemetriden gelen hedef koordinatlarını kullanarak izleyiciye rota göster
+      mapRoutes.value?.updateRemoteMissionRoute(icao, f.lat, f.lon, f.destLat, f.destLon);
+
       // HARİTADA AKICI HAREKET: Telemetri verisi 2 saniyede bir geldiği için, uçağın marker'ı o noktaya kayar.
       const marker = mapPlanes.value?.markers[icao];
       if (marker) {
@@ -134,6 +138,7 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
   Object.keys(currentFlights.value).forEach(icao => {
     if (currentFlights.value[icao].isRemote && !newTelemetry[icao]) {
       delete currentFlights.value[icao];
+      mapRoutes.value?.updateRemoteMissionRoute(icao, null, null, null, null); // Rotayı temizle
     }
   });
 }, { deep: true });
@@ -208,7 +213,9 @@ onMounted(async () => {
           altitude: plane.baroaltitude,
           heading: plane.heading,
           status: plane.status,
-          callsign: plane.callsign || 'Bilinmeyen'
+          callsign: plane.callsign || 'Bilinmeyen',
+          destLat: finalTarget?.lat || null,
+          destLon: finalTarget?.lon || null
         }).catch(err => console.error('Telemetri verisi iletilemedi:', err));
       }
     }

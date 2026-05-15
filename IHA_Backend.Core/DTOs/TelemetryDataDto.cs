@@ -17,5 +17,7 @@ namespace IHA_Backend.Core.DTOs
         public double Heading { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Callsign { get; set; } = string.Empty;
+        public double? DestLat { get; set; } // Hedef Enlem
+        public double? DestLon { get; set; } // Hedef Boylam
     }
 }
