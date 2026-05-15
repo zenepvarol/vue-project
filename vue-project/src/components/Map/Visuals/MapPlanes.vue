@@ -38,14 +38,12 @@ watch(() => props.currentFlights, (flights) => {
 
       markers[icao] = marker;
     }
-    // 2- Mevcut Marker'ı Güncelleme: (API'den gelen yeni konumları haritaya yansıt)
+    // 2- Mevcut Marker'ı Güncelleme (Sadece İkon ve Döndürme - Konum MapEngine'den yönetilir)
     else {
       const marker = markers[icao];
-      const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION', 'EMERGENCY_LANDED', 'STANDBY'].includes(plane.status);
-
-      if (plane.isApi && !isSimulatingLocally) {
-        // API'den yeni konum geldiğinde uçağı oraya yumuşakça kaydır
-        marker.slideTo([plane.lat, plane.lon], { duration: 1000 });
+      marker.setIcon(getPlaneIcon(isEnvanter || plane.isSiha, plane.isApi));
+      // Yerel simülasyon yoksa (Remote uçaksa) rotasyonu buradan da güncelleyebiliriz
+      if (!props.myFleetIcaos.includes(icao)) {
         marker.setRotationAngle((plane.heading || 0) - 45);
       }
     }

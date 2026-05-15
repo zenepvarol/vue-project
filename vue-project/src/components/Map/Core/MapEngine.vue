@@ -1,3 +1,7 @@
+<!-- MapEngine.vue - Merkezi Harita ve Simülasyon Motoru
+     Bu bileşen, İHA uçuş fiziği, dinamik rota hesaplamaları ve gerçek zamanlı telemetri senkronizasyonunu yönetir.
+     Dinamik Hedef Takip Sistemi (DHTS) kapsamında, aktif görev rotaları ve uçuş niyetleri harita üzerinde 
+     hem pilot hem de izleyiciler için eşzamanlı olarak görselleştirilir. -->
 <template>
   <div id="map"></div>
   <MapLayers :map="mapObject" @airports-loaded="data => airports = data" />
@@ -112,7 +116,9 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
         status: f.status || 'ACTIVE'
       };
     } else {
-      // Mevcut yabancı uçağın konumunu ve verilerini güncelle
+      // Eğer konum değişmemişse gereksiz animasyon başlatma (Takılmayı önlemek iin)
+      const isPositionSame = existingPlane.lat === f.lat && existingPlane.lon === f.lon;
+      
       existingPlane.lat = f.lat;
       existingPlane.lon = f.lon;
       existingPlane.velocity = f.velocity;
@@ -122,13 +128,13 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
       existingPlane.status = f.status;
 
       // HARİTADA CANLI ROTA ÇİZİMİ (Hedef Çizgisi)
-      // Telemetriden gelen hedef koordinatlarını kullanarak izleyiciye rota göster
       mapRoutes.value?.updateRemoteMissionRoute(icao, f.lat, f.lon, f.destLat, f.destLon);
 
-      // HARİTADA AKICI HAREKET: Telemetri verisi 2 saniyede bir geldiği için, uçağın marker'ı o noktaya kayar.
+      // HARİTADA AKICI HAREKET: Sadece konum değiştiğinde kaydır
       const marker = mapPlanes.value?.markers[icao];
-      if (marker) {
-        marker.slideTo(newPos, { duration: 2000 }); // Bir sonraki veriye kadar yavaşça kayacak ucak
+      if (marker && !isPositionSame) {
+        // 500ms'lik veri periyoduna uygun 600ms'lik yumuşak geçiş
+        marker.slideTo(newPos, { duration: 600 }); 
         marker.setRotationAngle(f.heading - 45);
       }
     }
@@ -154,10 +160,9 @@ onMounted(async () => {
   setInterval(() => {
 
     const icao = activeIcao.value;
-    
-    // Her 2 saniyede bir uçakları kontrol et
+    // --- CANLI RADAR SORGUSU (Her 500ms'de bir diğer uçakları kontrol et) ---
     const now = Date.now();
-    if (!window._lastTelemetryFetch || now - window._lastTelemetryFetch > 2000) {
+    if (!window._lastTelemetryFetch || now - window._lastTelemetryFetch > 500) {
       window._lastTelemetryFetch = now;
       const store = useFlightStore();
       store.fetchActiveTelemetry(); // Backend'deki tüm uçuşları çek
@@ -198,8 +203,8 @@ onMounted(async () => {
       mapTanker.value.update(icao, isPaused.value, finalTarget);
     }
 
-    // --- Canlı Telemetri Senkronizasyonu (2 saniyelik periyotlarla Backend'e veri iletimi) ---
-    if (!plane.lastTelemetryUpdate || Date.now() - plane.lastTelemetryUpdate > 2000) {
+    // --- Canlı Telemetri Senkronizasyonu (500ms periyotlarla Backend'e veri iletimi) ---
+    if (!plane.lastTelemetryUpdate || Date.now() - plane.lastTelemetryUpdate > 500) {
       plane.lastTelemetryUpdate = Date.now();
       // Standby haricindeki uçuş durumlarında güncel verileri ilet
       if (plane.status !== FLIGHT_STATUS.STANDBY && plane.status !== FLIGHT_STATUS.COMPLETED && 
