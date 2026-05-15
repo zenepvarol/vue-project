@@ -215,13 +215,28 @@ const STATUS_CONFIGS = {
 };
 
 const currentFlightState = computed(() => {
-  if (props.isEmergency) return 'EMERGENCY';
-  if (props.isReturningToStart) return 'RETURNING';
+  // Acil durum ve Dönüş durumları öncelikli (Yerel veya telemetri fark etmeksizin)
+  if (props.isEmergency || props.selectedFlight.status === 'EMERGENCY') return 'EMERGENCY';
+  if (props.isReturningToStart || props.selectedFlight.status === 'RETURNING') return 'RETURNING';
+  
+  // Backend'den gelen spesifik durumlar
   if (props.selectedFlight.status === 'EMERGENCY_LANDED') return 'EMERGENCY_LANDED';
   if (props.selectedFlight.status === 'MISSION_COMPLETE') return 'MISSION_COMPLETE';
   if (props.selectedFlight.status === 'ARRIVED' || props.selectedFlight.status === 'COMPLETED') return 'ARRIVED';
+  
+  // Uzak uçaksa (isRemote), API uçağıysa veya yerel filomuzda değilse
+  // yerel duraklatma (isPaused) bilgisini yoksay, sadece kendi durumuna bak
+  const isLocalFleet = props.myFleetIcaos.includes(String(activeIcao.value));
+  if (props.selectedFlight.isRemote || props.selectedFlight.isApi || !isLocalFleet) {
+    if (props.selectedFlight.status === 'STANDBY') return 'STANDBY';
+    if (props.selectedFlight.status === 'PAUSED') return 'PAUSED';
+    return 'ACTIVE';
+  }
+
+  // Yerel uçaksa duraklatma kontrolünü yap
   if (props.selectedFlight.status === 'STANDBY') return 'STANDBY';
   if (props.isPaused) return 'PAUSED';
+  
   return 'ACTIVE';
 });
 

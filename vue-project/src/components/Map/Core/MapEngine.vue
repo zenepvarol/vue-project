@@ -126,6 +126,9 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
       existingPlane.heading = f.heading;
       existingPlane.energy = f.energy;
       existingPlane.status = f.status;
+      existingPlane.isRemote = true; // Uzaktan takip edildiğini her güncellemede teyit et
+      existingPlane.missionDestName = f.destName;
+      existingPlane.modelType = f.modelType;
 
       // HARİTADA CANLI ROTA ÇİZİMİ (Hedef Çizgisi)
       mapRoutes.value?.updateRemoteMissionRoute(icao, f.lat, f.lon, f.destLat, f.destLon);
@@ -220,7 +223,9 @@ onMounted(async () => {
           status: plane.status,
           callsign: plane.callsign || 'Bilinmeyen',
           destLat: finalTarget?.lat || null,
-          destLon: finalTarget?.lon || null
+          destLon: finalTarget?.lon || null,
+          destName: plane.missionDestName || null, // Hedef ismini gönder
+          modelType: plane.modelType || null // Model bilgisini gönder
         }).catch(err => console.error('Telemetri verisi iletilemedi:', err));
       }
     }

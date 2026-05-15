@@ -19,5 +19,7 @@ namespace IHA_Backend.Core.DTOs
         public string Callsign { get; set; } = string.Empty;
         public double? DestLat { get; set; } // Hedef Enlem
         public double? DestLon { get; set; } // Hedef Boylam
+        public string? DestName { get; set; } // Hedef İsmi (Örn: ARN, Kastamonu)
+        public string? ModelType { get; set; } // Uçak Modeli (Örn: B738, TB2)
     }
 }
