@@ -117,13 +117,15 @@
       <div v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="action-section d-flex flex-column gap-2 mt-4">
         <v-btn
           v-if="(animationSteps[activeIcao] > 0 || ((myFleetIcaos.includes(String(activeIcao)) || selectedFlight.isSiha) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
-          color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')">
+          color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')"
+          style="font-size: 11px !important; letter-spacing: 0.5px;">
           ANA MERKEZE DÖN
         </v-btn>
 
 
         <v-btn v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart" color="warning" block
-          size="default" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')">
+          size="default" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')"
+          style="font-size: 11px !important; letter-spacing: 0.5px;">
           ARIZA SİMÜLE ET
         </v-btn>
 
@@ -132,7 +134,8 @@
           <div class="text-caption text-center font-weight-bold mb-2 blink-text" style="color: #e74c3c;">
             <v-icon icon="mdi-alert-octagon" /> {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
           </div>
-          <v-btn color="error" block size="default" @click="$emit('handle-manual-emergency')">ACİL İNİŞ YAP</v-btn>
+          <v-btn color="error" block size="default" @click="$emit('handle-manual-emergency')"
+            style="font-size: 11px !important; letter-spacing: 0.5px;">ACİL İNİŞ YAP</v-btn>
         </div>
       </div>
 
@@ -155,7 +158,7 @@
         </v-row>
 
         <v-btn color="primary" block size="default" prepend-icon="mdi-arrow-right-bold" @click="$emit('set-manual-target')"
-          class="font-weight-bold text-none" style="margin-top: 10px !important;">
+          class="font-weight-bold text-none" style="margin-top: 10px !important; font-size: 11px !important; letter-spacing: 0.5px;">
           HEDEFE YÖNLENDİR
         </v-btn>
       </div>

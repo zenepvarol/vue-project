@@ -1,6 +1,6 @@
 <template>
   <!-- v-sheet: Sağ panel konteyneri. Sadece uçak seçiliyse VEYA kullanıcı Admin ise gösterilir -->
-  <v-sheet v-if="authStore.user?.role?.toLowerCase() === 'admin' || selectedFlight" component="aside" class="sidebar right pt-16" style="overflow-y: auto; max-height: 100vh;">
+  <v-sheet v-if="authStore.user?.role?.toLowerCase() === 'admin' || selectedFlight" component="aside" class="sidebar right" style="overflow-y: auto; height: 100vh;">
     
     <MissionTargeting v-if="!selectedFlight" v-model:destinationAirportId="destinationAirportId" v-model:destLat="destLat"
       v-model:destLon="destLon" :airports="airports" @assign-mission="$emit('assign-mission')" />

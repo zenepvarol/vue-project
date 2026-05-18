@@ -1,6 +1,5 @@
 <template>
-  <v-container v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="pa-4">
-    <div style="height: 30px;"></div> <!-- Üst Boşluk -->
+  <v-container v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="pa-4 pt-5">
     <div class="text-center" style="font-size: 16px !important; font-weight: 900 !important; margin-bottom: 30px !important;">
       Hedef Belirleme Sistemi
     </div>
@@ -36,7 +35,7 @@
 
           <!-- v-btn: Ana buton bileşeni; prepend-icon ile butonun soluna navigasyon ikonu yerleştirilir -->
           <v-btn color="error" block size="large" prepend-icon="mdi-navigation-variant" @click="$emit('assign-mission')"
-            class="mt-10 font-weight-bold text-none">
+            class="mt-10 font-weight-bold text-none" style="font-size: 11px !important; letter-spacing: 0.5px;">
             HEDEFİ ONAYLA VE SEVK ET
           </v-btn>
         </v-card>
