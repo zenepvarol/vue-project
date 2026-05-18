@@ -28,6 +28,7 @@
 <script setup>
 import { onMounted, ref, computed, watch } from 'vue';
 import { useFlightStore } from '@/stores/flightStore';
+import { useAuthStore } from '@/stores/authStore';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotatedmarker';
@@ -94,6 +95,7 @@ const drawFullRoute = (icao) => {
 const focusFlight = (f) => mapNavigator.value?.focusFlight(f);
 
 const store = useFlightStore();
+const authStore = useAuthStore();
 
 // CANLI İZLEME (Watcher)
 // Backend'den gelen telemetri verileri değiştikçe haritadaki uçakları günceller.
@@ -101,7 +103,7 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
   Object.values(newTelemetry).forEach(f => {
     const icao = String(f.icao);
     
-    const isSimulatingHere = props.myFleetIcaos.includes(icao) && !isPaused.value && activeIcao.value === icao;
+    const isSimulatingHere = authStore.user?.role?.toLowerCase() === 'admin' && !isPaused.value && activeIcao.value === icao;
     if (isSimulatingHere) return;
 
     const existingPlane = currentFlights.value[icao];
@@ -172,6 +174,7 @@ onMounted(async () => {
     }
 
     if (!icao || isPaused.value || !currentFlights.value[icao]) return;
+    if (authStore.user?.role?.toLowerCase() !== 'admin') return;
 
     // Eksik olan rota veya adım verilerini çalışma anında tamamla (Lazy Initialization)
     if (!flightPaths.value[icao]) flightPaths.value[icao] = [{ lat: currentFlights.value[icao].lat, lon: currentFlights.value[icao].lon }];

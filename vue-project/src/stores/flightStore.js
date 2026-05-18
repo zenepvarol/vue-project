@@ -52,7 +52,7 @@ export const useFlightStore = defineStore('flight', {
 
           // ÖNEMLİ: Eğer uçak şu an yerel Vue simülasyonu tarafından hareket ettiriliyorsa, 
           // API'den gelen (eski) koordinatların mevcut konumu ezmesini engelle.
-          const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION', 'ACTIVE', 'ARRIVED', 'EMERGENCY_LANDED', 'STANDBY'].includes(existingData.status);
+          const isSimulatingLocally = ['GOING_TO_DEST', 'GOING_TO_DEP', 'RETURNING', 'MISSION_COMPLETE', 'MANUAL', 'ON_MISSION', 'ACTIVE'].includes(existingData.status);
 
           this.currentFlights[icao] = {
             ...existingData,

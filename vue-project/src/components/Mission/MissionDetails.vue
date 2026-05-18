@@ -34,7 +34,7 @@
         </div>
 
         <!-- Mevcut Hedef Bilgisi -->
-        <div class="detail-item full-width mb-3" v-if="selectedFlight.missionDestName">
+        <div class="detail-item full-width mb-3" v-if="selectedFlight.missionDestName && currentFlightState !== 'STANDBY' && currentFlightState !== 'EMERGENCY_LANDED'">
           <label style="font-size: 11px; opacity: 0.7; color: #555;">
             <v-icon icon="mdi-map-marker-distance" size="14" /> Hedef
           </label>
@@ -79,7 +79,7 @@
         </v-row>
 
         <!-- Mesafe Verisi: Normal uçuşta Gidilen/Toplam, Dönüşte ise Kalan mesafe gösterir -->
-        <div class="detail-item mb-3" v-if="isReturningToStart || (selectedFlight.total_mission_dist || selectedFlight.trip_distance) > 0">
+        <div class="detail-item mb-3" v-if="(isReturningToStart || (selectedFlight.total_mission_dist || selectedFlight.trip_distance) > 0) && currentFlightState !== 'STANDBY' && currentFlightState !== 'EMERGENCY_LANDED' && currentFlightState !== 'ARRIVED'">
           <label style="font-size: 11px; color: #555;">
             <v-icon :icon="isReturningToStart ? 'mdi-home-import-outline' : 'mdi-map-marker'" size="14" /> 
             {{ isReturningToStart ? 'Ana Merkeze Uzaklık' : 'Mesafe (Gidilen / Toplam) ' }}
@@ -95,7 +95,7 @@
         </div>
 
         <!-- Yolculuk İlerlemesi: Orijinal hedefe veya mevcut rotaya göre progress bar -->
-        <div v-if="(selectedFlight.total_mission_dist || selectedFlight.trip_distance) > 0" class="mt-2 text-primary">
+        <div v-if="((selectedFlight.total_mission_dist || selectedFlight.trip_distance) > 0) && currentFlightState !== 'STANDBY' && currentFlightState !== 'EMERGENCY_LANDED' && currentFlightState !== 'ARRIVED'" class="mt-2 text-primary">
           <div class="d-flex justify-space-between mb-1" style="font-size: 11px; font-weight: bold;">
             <span>{{ isReturningToStart ? 'DÖNÜŞ İLERLEMESİ' : 'YOLCULUK İLERLEMESİ' }}</span>
             <span v-if="isReturningToStart">
@@ -116,7 +116,7 @@
       <!-- SADECE ADMİNLER GÖREBİLİR -->
       <div v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="action-section d-flex flex-column gap-2 mt-4">
         <v-btn
-          v-if="(animationSteps[activeIcao] > 0 || ((myFleetIcaos.includes(String(activeIcao)) || selectedFlight.isSiha) && selectedFlight.status !== 'STANDBY')) && !isReturningToStart && !isEmergency && !isEmergencySimulated"
+          v-if="currentFlightState !== 'STANDBY' && currentFlightState !== 'EMERGENCY_LANDED' && currentFlightState !== 'ARRIVED' && !isReturningToStart && !isEmergency && !isEmergencySimulated"
           color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')"
           style="font-size: 11px !important; letter-spacing: 0.5px;">
           ANA MERKEZE DÖN
@@ -226,6 +226,13 @@ const currentFlightState = computed(() => {
   if (props.selectedFlight.status === 'EMERGENCY_LANDED') return 'EMERGENCY_LANDED';
   if (props.selectedFlight.status === 'MISSION_COMPLETE') return 'MISSION_COMPLETE';
   if (props.selectedFlight.status === 'ARRIVED' || props.selectedFlight.status === 'COMPLETED') return 'ARRIVED';
+
+  // Fiziksel olarak yerde olan uçaklar için durum kontrolü (hız < 5 kt ve rakım < 100 ft)
+  const isGrounded = (props.selectedFlight.velocity || 0) < 5 && (props.selectedFlight.baroaltitude || 0) < 100;
+  if (isGrounded) {
+    if (props.selectedFlight.status === 'EMERGENCY_LANDED') return 'EMERGENCY_LANDED';
+    return 'STANDBY';
+  }
   
   // Uzak uçaksa (isRemote), API uçağıysa veya yerel filomuzda değilse
   // yerel duraklatma (isPaused) bilgisini yoksay, sadece kendi durumuna bak
