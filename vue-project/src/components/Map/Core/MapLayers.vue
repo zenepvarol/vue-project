@@ -5,6 +5,7 @@ import { watch } from 'vue'; import L from 'leaflet';
 import { getAirportIcon } from '@/utils/mapVisuals';
 import { airportService } from '@/api/airportService';
 import { aircraftService } from '@/api/aircraftService';
+import { getDistance } from '@/utils/physics';
 
 /** PROPS: Üst bileşenden (MapEngine) gelen aktif Leaflet harita objesi */
 const props = defineProps({ map: Object });
@@ -28,16 +29,28 @@ watch(() => props.map, async (newMap) => {
       const aircrafts = aircraftResponse.data;
 
       aircrafts.forEach(aircraft => {
-        const baseId = `BASE_${aircraft.icao24}`;
-        // Eğer bu üs daha önce eklenmemişse listeye dahil et
-        if (!airData.find(a => a.id === baseId)) {
-          airData.push({
-            id: baseId,
-            name: `${aircraft.callsign || aircraft.icao24} Ana Üssü`,
-            lat: parseFloat(aircraft.latitude),
-            lon: parseFloat(aircraft.longitude),
-            type: 'Base'
-          });
+        const aLat = parseFloat(aircraft.latitude);
+        const aLon = parseFloat(aircraft.longitude);
+
+        // Mevcut havalimanları arasında bu koordinatlara aşırı yakın (2 km'den az) olan var mı?
+        const isNearExistingAirport = airData.some(ap => {
+          if (ap.type === 'Base') return false; // Diğer üsleri yoksay
+          const dist = getDistance({ lat: aLat, lon: aLon }, { lat: ap.lat, lon: ap.lon });
+          return dist < 2.0; // 2 km tolerans
+        });
+
+        // Eğer yakınında bir havalimanı yoksa, yeni bir üs marker'ı ekle (Üst üste çakışmayı önlemek için)
+        if (!isNearExistingAirport) {
+          const baseId = `BASE_${aircraft.icao24}`;
+          if (!airData.find(a => a.id === baseId)) {
+            airData.push({
+              id: baseId,
+              name: `${aircraft.callsign || aircraft.icao24} Ana Üssü`,
+              lat: aLat,
+              lon: aLon,
+              type: 'Base'
+            });
+          }
         }
       });
 

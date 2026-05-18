@@ -84,6 +84,46 @@ const togglePause = () => {
   }
 };
 
+const getHomeAirportName = (plane) => {
+  if (!plane) return "Ana Merkez";
+  const homeLat = plane.homeLat || plane.lat;
+  const homeLon = plane.homeLon || plane.lon;
+  
+  if (airports.value) {
+    const list = Array.isArray(airports.value) ? airports.value : Object.values(airports.value);
+    let nearest = null;
+    let minDist = Infinity;
+    
+    list.forEach(apt => {
+      if (apt.type === 'Base') return; // Sadece gerçek havalimanı kodlarını eşleştir
+      const dist = getDistance({ lat: homeLat, lon: homeLon }, { lat: apt.lat, lon: apt.lon });
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = apt;
+      }
+    });
+    
+    if (nearest && minDist < 2.0) {
+      return nearest.id || nearest.name;
+    }
+  }
+  return "Ana Merkez";
+};
+
+// Uçaklar yüklendiğinde ya da yeni bir uçak eklendiğinde başlangıç havalimanı adını otomatik ata
+watch(() => currentFlights.value, (flights) => {
+  if (!flights || !airports.value) return;
+  Object.values(flights).forEach(plane => {
+    if (!plane.homeAirportName) {
+      const homeAirport = getHomeAirportName(plane);
+      plane.homeAirportName = homeAirport;
+      if (!plane.lastDepartureName) {
+        plane.lastDepartureName = homeAirport;
+      }
+    }
+  });
+}, { deep: true, immediate: true });
+
 const clearAllRoutes = () => {
   mapRoutes.value?.clearAllRoutes();
 };
@@ -261,10 +301,11 @@ onMounted(async () => {
         // Eğer iniş yapılan nokta uçağın ana merkeziyse (path[0]), direkt hangara (STANDBY) gir
         const homePos = path && path.length > 0 ? { lat: path[0].lat, lon: path[0].lon } : { lat: plane.homeLat, lon: plane.homeLon };
         const distToHome = getDistance({ lat: plane.lat, lon: plane.lon }, homePos);
+        const homeName = getHomeAirportName(plane);
         if (distToHome < 0.5) {
           plane.status = FLIGHT_STATUS.STANDBY;
           animationSteps.value[icao] = 0;
-          logFlightRecord(plane, "Ana Merkez (Acil)");
+          logFlightRecord(plane, `${homeName} (Acil)`);
           telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
         } else {
           plane.status = FLIGHT_STATUS.EMERGENCY_LANDED;
@@ -276,8 +317,8 @@ onMounted(async () => {
         plane.energy = 100; plane.ammo = 2;
         mapRoutes.value?.clearAllRoutes();
         Swal.fire({
-          title: distToHome < 0.5 ? 'ÜSSE ACİL İNİŞ YAPILDI' : 'ACİL İNİŞ YAPILDI',
-          text: distToHome < 0.5 ? 'Ana merkeze güvenli iniş yapıldı.' : 'En yakın noktaya güvenli iniş yapıldı.',
+          title: distToHome < 0.5 ? `${homeName.toUpperCase()} MEYDANINA ACİL İNİŞ YAPILDI` : 'ACİL İNİŞ YAPILDI',
+          text: distToHome < 0.5 ? `${homeName} meydanına güvenli acil iniş yapıldı.` : 'En yakın noktaya güvenli iniş yapıldı.',
           icon: 'info', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false
         });
       }
@@ -337,10 +378,11 @@ onMounted(async () => {
       if (arrived || distToTarget < 0.1) {
         plane.velocity = 0; plane.baroaltitude = 0; plane.status = FLIGHT_STATUS.STANDBY; plane.energy = 100; plane.ammo = 2;
         isReturningToStart.value = false; isPaused.value = true; animationSteps.value[icao] = 0;
-        logFlightRecord(plane, "Ana Merkez");
+        const homeName = getHomeAirportName(plane);
+        logFlightRecord(plane, homeName);
         drawFullRoute(icao);
         telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
-        Swal.fire({ title: 'Üsse Dönüldü', text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+        Swal.fire({ title: `${homeName} Meydanına Dönüldü`, text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
       }
       // 4. Durum: Haritada manuel olarak tanımlanan özel bir rotaya/koordinata uçuş
     } else if (isManualRouting.value && manualTarget.value) {
