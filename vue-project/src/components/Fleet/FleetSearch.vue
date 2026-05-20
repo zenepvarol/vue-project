@@ -1,6 +1,6 @@
 <template>
   <!-- v-sheet: Bileşenin ana kapsayıcısı. Sayfa arka planına uyumlu, şeffaf bir temel oluşturur. -->
-  <v-sheet class="sidebar-header px-0 py-2" color="transparent">
+  <v-sheet class="sidebar-header px-0 pt-4 pb-2" color="transparent">
     <!-- 1. Satır: Başlık ve Karanlık Mod Butonu -->
     <!-- no-gutters: Gereksiz sütun boşluklarını siler.
          justify="center": Tüm içeriği yatayda merkeze toplar.

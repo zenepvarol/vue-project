@@ -1,5 +1,6 @@
 <template>
-  <v-container v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="pa-4 pt-5">
+  <v-container v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="pa-4">
+    <div style="height: 30px;"></div> <!-- Üst Boşluk -->
     <div class="text-center" style="font-size: 16px !important; font-weight: 900 !important; margin-bottom: 30px !important;">
       Hedef Belirleme Sistemi
     </div>
