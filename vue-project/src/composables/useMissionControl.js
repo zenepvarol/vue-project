@@ -43,9 +43,12 @@ export function useMissionControl(context) {
     const plane = currentFlights.value[icao];
 
     if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha)) {
+      // Eğer uçuş tamamlanıp (MISSION_COMPLETE) üsse dönülüyorsa kalkış noktasını hedef olarak kaydet.
+      // Yol ortasında (görev tamamlanmadan) ana merkeze dönülüyorsa gerçek kalkış noktasını bozma.
+      if (plane.status === FLIGHT_STATUS.MISSION_COMPLETE) {
+        plane.lastDepartureName = plane.missionDestName || "Görev Sahası";
+      }
       plane.status = FLIGHT_STATUS.RETURNING;
-      // Dönüş başladığında, kalkış noktası olarak bulunduğu yeri kaydet
-      plane.lastDepartureName = plane.missionDestName || "Görev Sahası";
     }
 
     const path = flightPaths.value[icao];
