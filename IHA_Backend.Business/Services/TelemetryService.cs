@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using IHA_Backend.Core.DTOs;
 using IHA_Backend.Business.Interfaces;
+using IHA_Backend.Core.Interfaces;
 
 namespace IHA_Backend.Business.Services
 {
@@ -13,13 +14,27 @@ namespace IHA_Backend.Business.Services
     {
         // Thread-safe Dictionary: Eşzamanlı (multi-threaded) veri erişimi ve güncellemeleri için güvenli depolama.
         private readonly ConcurrentDictionary<string, TelemetryDataDto> _activeFlights = new();
+        private readonly INotificationService _notificationService;
+
+        public TelemetryService(INotificationService notificationService)
+        {
+            _notificationService = notificationService;
+        }
 
         /// <summary>
         /// Gelen telemetri paketini işleyerek bellekteki veriyi günceller veya yeni uçuş kaydı oluşturur.
         /// </summary>
         public void UpdateTelemetry(TelemetryDataDto telemetryData)
         {
-            _activeFlights.AddOrUpdate(telemetryData.Icao, telemetryData, (key, oldValue) => telemetryData);
+            TelemetryDataDto? oldData = null;
+            _activeFlights.AddOrUpdate(telemetryData.Icao, telemetryData, (key, oldValue) =>
+            {
+                oldData = oldValue;
+                return telemetryData;
+            });
+
+            // Durum değişikliğini kontrol et ve gerekirse tüm istemcilere bildir
+            CheckAndBroadcastStatusChange(oldData, telemetryData);
         }
 
         /// <summary>
@@ -36,6 +51,67 @@ namespace IHA_Backend.Business.Services
         public IEnumerable<TelemetryDataDto> GetActiveFlights()
         {
             return _activeFlights.Values;
+        }
+
+        /// <summary>
+        /// Uçağın durum değişikliklerini takip eder ve kritik durumlarda SignalR üzerinden gerçek zamanlı bildirim yayınlar.
+        /// </summary>
+        private void CheckAndBroadcastStatusChange(TelemetryDataDto? oldData, TelemetryDataDto newData)
+        {
+            string oldStatus = oldData?.Status ?? string.Empty;
+            string newStatus = newData.Status;
+
+            // Durum değişmediyse işlem yapma
+            if (oldStatus == newStatus) return;
+
+            string type = "info";
+            string title = string.Empty;
+            string text = string.Empty;
+
+            // Durum geçişlerine göre bildirim içeriklerini hazırla
+            if ((string.IsNullOrEmpty(oldStatus) || oldStatus == "STANDBY") && 
+                (newStatus == "GOING_TO_DEP" || newStatus == "GOING_TO_DEST" || newStatus == "ACTIVE"))
+            {
+                type = "info";
+                title = "UÇUŞ BAŞLADI";
+                text = $"Birim: <b>{newData.Callsign}</b> hedefe doğru yola çıktı.";
+            }
+            else if (newStatus == "MISSION_COMPLETE")
+            {
+                type = "success";
+                title = "HEDEF İMHA EDİLDİ";
+                text = $"Birim: <b>{newData.Callsign}</b><br>Görev tamamlandı, üsse dönülüyor!";
+            }
+            else if (newStatus == "EMERGENCY_LANDED")
+            {
+                type = "warning";
+                title = "ACİL İNİŞ YAPILDI";
+                text = $"Birim: <b>{newData.Callsign}</b> en yakın meydan veya güvenli bölgeye acil iniş gerçekleştirdi.";
+            }
+            else if (newStatus == "ARRIVED")
+            {
+                type = "success";
+                title = "HEDEFE VARILDI";
+                text = $"Birim: <b>{newData.Callsign}</b><br>Manuel rota ve ikmal tamamlandı.";
+            }
+            else if (newStatus == "COMPLETED")
+            {
+                type = "info";
+                title = "GÖREV TAMAMLANDI";
+                text = $"Birim: <b>{newData.Callsign}</b> rotasını tamamladı, ikmal yapıldı.";
+            }
+            else if (oldStatus == "RETURNING" && newStatus == "STANDBY")
+            {
+                type = "info";
+                title = "ÜSSE DÖNÜLDÜ";
+                text = $"Birim: <b>{newData.Callsign}</b> üsse dönerek iniş yaptı. İkmal tamamlandı.";
+            }
+
+            // Eğer tanımlanmış bir bildirim varsa tüm SignalR istemcilerine yayınla (fire-and-forget)
+            if (!string.IsNullOrEmpty(title))
+            {
+                _ = _notificationService.SendNotificationAsync(type, title, text, newData.Icao);
+            }
         }
     }
 }

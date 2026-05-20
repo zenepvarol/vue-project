@@ -50,6 +50,7 @@ import MapMission from '../Features/MapMission.vue';
 import MapManualControl from '../Features/MapManualControl.vue';
 import MapNavigator from './MapNavigator.vue';
 import { telemetryService } from '@/api/telemetryService';
+import { signalRService } from '@/api/signalRService';
 
 const props = defineProps({ myFleetIcaos: Array, selectedFlight: Object });
 const currentFlights = defineModel('currentFlights'), activeIcao = defineModel('activeIcao'), isPaused = defineModel('isPaused');
@@ -201,6 +202,29 @@ onMounted(async () => {
   map = L.map('map', { maxBounds: worldBounds, maxBoundsViscosity: 1.0, minZoom: 2 }).setView([20, 0], 2);
   mapObject.value = map;
 
+  // SignalR Bildirim Servisini başlat ve dinleyicileri kaydet
+  signalRService.startConnection();
+  signalRService.onNotificationReceived(({ type, title, text, icao }) => {
+    const plane = currentFlights.value[icao];
+    const isSimulatingHere = authStore.user?.role?.toLowerCase() === 'admin' && !isPaused.value && activeIcao.value === icao;
+    const isRemote = plane ? plane.isRemote : true;
+
+    if (isSimulatingHere && !isRemote) {
+      return; // Çift bildirimi önlemek için yerel simülatör ekranında es geç
+    }
+
+    Swal.fire({
+      title: title,
+      html: text,
+      icon: type,
+      toast: true,
+      position: 'top-end',
+      timer: 3500,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
+  });
+
   // Simülasyon döngüsü: Uçakların hareketini, hızlanmasını ve görev kontrollerini periyodik denetler
   setInterval(() => {
 
@@ -302,17 +326,38 @@ onMounted(async () => {
         const homePos = path && path.length > 0 ? { lat: path[0].lat, lon: path[0].lon } : { lat: plane.homeLat, lon: plane.homeLon };
         const distToHome = getDistance({ lat: plane.lat, lon: plane.lon }, homePos);
         const homeName = getHomeAirportName(plane);
+        const finalStatus = FLIGHT_STATUS.EMERGENCY_LANDED;
         if (distToHome < 0.5) {
           plane.status = FLIGHT_STATUS.STANDBY;
           animationSteps.value[icao] = 0;
           logFlightRecord(plane, `${homeName} (Acil)`);
-          telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
         } else {
           plane.status = FLIGHT_STATUS.EMERGENCY_LANDED;
           const landingSpot = nearestAirport.value?.id || "ACIL";
           plane.missionDestName = landingSpot; // Sonraki uçuş için kalkış noktası ismi güncellenir
           logFlightRecord(plane, landingSpot);
         }
+
+        // Final telemetri durumunu gönderip misyonu sonlandır
+        telemetryService.updateTelemetry({
+          icao: icao,
+          lat: plane.lat,
+          lon: plane.lon,
+          velocity: 0,
+          energy: 100,
+          altitude: 0,
+          heading: plane.heading,
+          status: finalStatus,
+          callsign: plane.callsign || 'Bilinmeyen',
+          destLat: null,
+          destLon: null,
+          destName: plane.missionDestName || null,
+          modelType: plane.modelType || null
+        }).then(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        }).catch(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        });
 
         plane.energy = 100; plane.ammo = 2;
         mapRoutes.value?.clearAllRoutes();
@@ -381,7 +426,27 @@ onMounted(async () => {
         const homeName = getHomeAirportName(plane);
         logFlightRecord(plane, homeName);
         drawFullRoute(icao);
-        telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
+
+        // Final telemetri durumunu gönderip misyonu sonlandır
+        telemetryService.updateTelemetry({
+          icao: icao,
+          lat: plane.lat,
+          lon: plane.lon,
+          velocity: 0,
+          energy: 100,
+          altitude: 0,
+          heading: plane.heading,
+          status: 'STANDBY',
+          callsign: plane.callsign || 'Bilinmeyen',
+          destLat: null,
+          destLon: null,
+          destName: plane.missionDestName || null,
+          modelType: plane.modelType || null
+        }).then(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        }).catch(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        });
         Swal.fire({ title: `${homeName} Meydanına Dönüldü`, text: 'İkmal tamamlandı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
       }
       // 4. Durum: Haritada manuel olarak tanımlanan özel bir rotaya/koordinata uçuş
@@ -401,7 +466,27 @@ onMounted(async () => {
         plane.energy = 100; plane.ammo = 2;
         logFlightRecord(plane, plane.missionDestName || "Manuel Hedef");
         mapRoutes.value?.clearAllRoutes();
-        telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
+
+        // Final telemetri durumunu gönderip misyonu sonlandır
+        telemetryService.updateTelemetry({
+          icao: icao,
+          lat: plane.lat,
+          lon: plane.lon,
+          velocity: 0,
+          energy: 100,
+          altitude: 0,
+          heading: plane.heading,
+          status: FLIGHT_STATUS.ARRIVED,
+          callsign: plane.callsign || 'Bilinmeyen',
+          destLat: null,
+          destLon: null,
+          destName: plane.missionDestName || null,
+          modelType: plane.modelType || null
+        }).then(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        }).catch(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        });
         Swal.fire({
           title: 'HEDEFE VARILDI', html: `Birim: <b>${plane.callsign || 'Bilinmeyen'}</b><br>Manuel Rota ve ikmal tamamlandı.`,
           icon: 'success', toast: true, position: 'top-end', timer: 3500, showConfirmButton: false, timerProgressBar: true
@@ -419,7 +504,27 @@ onMounted(async () => {
         isPaused.value = true;
         animationSteps.value[icao] = 0;
         logFlightRecord(plane, "Rota Sonu");
-        telemetryService.endMission(icao).catch(()=>{}); // Telemetriden sil
+
+        // Final telemetri durumunu gönderip misyonu sonlandır
+        telemetryService.updateTelemetry({
+          icao: icao,
+          lat: plane.lat,
+          lon: plane.lon,
+          velocity: 0,
+          energy: 100,
+          altitude: 0,
+          heading: plane.heading,
+          status: FLIGHT_STATUS.COMPLETED,
+          callsign: plane.callsign || 'Bilinmeyen',
+          destLat: null,
+          destLon: null,
+          destName: plane.missionDestName || null,
+          modelType: plane.modelType || null
+        }).then(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        }).catch(() => {
+          telemetryService.endMission(icao).catch(()=>{});
+        });
         Swal.fire({ title: 'GÖREV TAMAMLANDI', text: 'İkmal yapıldı.', icon: 'info', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         return;
       }

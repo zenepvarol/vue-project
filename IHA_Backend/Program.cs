@@ -24,6 +24,8 @@ builder.Services.AddScoped<IAircraftService, AircraftService>();
 builder.Services.AddScoped<IFlightHistoryService, FlightHistoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<ITelemetryService, TelemetryService>(); // Telemetri Servisi (Uygulama boyunca bellekte tek bir liste tutar)
+builder.Services.AddSingleton<IHA_Backend.Core.Interfaces.INotificationService, IHA_Backend.Services.SignalRNotificationService>(); // SignalR Bildirim Servisi kaydı
+builder.Services.AddSignalR(); // Gerçek zamanlı bildirimler için SignalR servisini ekle
 
 // CORS Yapılandırması (Frontend'in erişebilmesi için)
 builder.Services.AddCors(options =>
@@ -31,9 +33,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll",
         policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.SetIsOriginAllowed(origin => true) // SignalR'da credentials (kimlik bilgisi) iletimi için dinamik origin izin verilir
                   .AllowAnyMethod()
-                  .AllowAnyHeader();
+                  .AllowAnyHeader()
+                  .AllowCredentials();
         });
 });
 
@@ -56,6 +59,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+
+        // SignalR WebSockets/SSE bağlantıları için query string'deki access_token'ı ayıkla
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -106,5 +124,6 @@ app.UseAuthentication(); // Gelen isteğin kimlik kontrolü
 app.UseAuthorization();  // Kimliği doğrulanmış kişinin yetki kontrolü
 
 app.MapControllers();
+app.MapHub<IHA_Backend.Hubs.NotificationHub>("/hubs/notification"); // SignalR hub yolunu haritala
 
 app.Run();
