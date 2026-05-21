@@ -144,7 +144,10 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
   Object.values(newTelemetry).forEach(f => {
     const icao = String(f.icao);
     
-    const isSimulatingHere = authStore.user?.role?.toLowerCase() === 'admin' && !isPaused.value && activeIcao.value === icao;
+    const isSimulatingHere = authStore.user?.role?.toLowerCase() === 'admin' && 
+                             !isPaused.value && 
+                             activeIcao.value === icao &&
+                             (!f.controlledBy || f.controlledBy === authStore.user?.username);
     if (isSimulatingHere) return;
 
     const existingPlane = currentFlights.value[icao];
@@ -156,7 +159,8 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
         ...f,
         icao24: icao,
         isRemote: true,
-        status: f.status || 'ACTIVE'
+        status: f.status || 'ACTIVE',
+        controlledBy: f.controlledBy
       };
     } else {
       // Eğer konum değişmemişse gereksiz animasyon başlatma (Takılmayı önlemek iin)
@@ -172,6 +176,7 @@ watch(() => store.telemetryFlights, (newTelemetry) => {
       existingPlane.isRemote = true; // Uzaktan takip edildiğini her güncellemede teyit et
       existingPlane.missionDestName = f.destName;
       existingPlane.modelType = f.modelType;
+      existingPlane.controlledBy = f.controlledBy;
 
       // HARİTADA CANLI ROTA ÇİZİMİ (Hedef Çizgisi)
       mapRoutes.value?.updateRemoteMissionRoute(icao, f.lat, f.lon, f.destLat, f.destLon);
@@ -240,11 +245,14 @@ onMounted(async () => {
     if (!icao || isPaused.value || !currentFlights.value[icao]) return;
     if (authStore.user?.role?.toLowerCase() !== 'admin') return;
 
+    const plane = currentFlights.value[icao];
+    // Sadece uçuşu yöneten admin simülasyonu koşturabilir ve telemetri güncelleyebilir
+    if (plane.controlledBy && plane.controlledBy !== authStore.user?.username) return;
+
     // Eksik olan rota veya adım verilerini çalışma anında tamamla (Lazy Initialization)
-    if (!flightPaths.value[icao]) flightPaths.value[icao] = [{ lat: currentFlights.value[icao].lat, lon: currentFlights.value[icao].lon }];
+    if (!flightPaths.value[icao]) flightPaths.value[icao] = [{ lat: plane.lat, lon: plane.lon }];
     if (animationSteps.value[icao] === undefined) animationSteps.value[icao] = 0;
 
-    const plane = currentFlights.value[icao];
     const path = flightPaths.value[icao];
     const currentPos = { lat: plane.lat, lon: plane.lon };
 

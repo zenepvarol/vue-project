@@ -1,6 +1,7 @@
 <script setup>
 import { getDistance } from '@/utils/physics'; import { triggerExplosion as visualExplosion } from '@/utils/mapVisuals';
 import { FLIGHT_STATUS } from '@/constants/flightConstants';
+import { useAuthStore } from '@/stores/authStore';
 
 const props = defineProps({
   currentFlights: Object,
@@ -15,6 +16,8 @@ const destLat = defineModel('destLat');
 const destLon = defineModel('destLon');
 const activeIcao = defineModel('activeIcao');
 const isPaused = defineModel('isPaused');
+
+const authStore = useAuthStore();
 
 // Kullanıcının seçtiği hedef rotasına hangarda bekleyen en yakın İHA'yı gönderir
 const assignMission = () => {
@@ -75,6 +78,7 @@ const assignMission = () => {
   plane.total_mission_dist = minDistance;
   plane.distance_from_dep = 0;
   plane.status = FLIGHT_STATUS.GOING_TO_DEST;
+  plane.controlledBy = authStore.user?.username;
 
   props.mapRoutes?.drawMissionRoute(plane, targetPos); // Görev rotasını çizimi
 

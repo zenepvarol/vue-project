@@ -24,8 +24,19 @@ namespace IHA_Backend.Business.Services
         /// <summary>
         /// Gelen telemetri paketini işleyerek bellekteki veriyi günceller veya yeni uçuş kaydı oluşturur.
         /// </summary>
-        public void UpdateTelemetry(TelemetryDataDto telemetryData)
+        public bool UpdateTelemetry(TelemetryDataDto telemetryData, string controllerName)
         {
+            if (_activeFlights.TryGetValue(telemetryData.Icao, out var existing))
+            {
+                if (!string.IsNullOrEmpty(existing.ControlledBy) && existing.ControlledBy != controllerName)
+                {
+                    return false; // Farklı bir admin kontrol ediyor
+                }
+            }
+
+            // Uçuşu kontrol eden kullanıcıyı kaydet
+            telemetryData.ControlledBy = controllerName;
+
             TelemetryDataDto? oldData = null;
             _activeFlights.AddOrUpdate(telemetryData.Icao, telemetryData, (key, oldValue) =>
             {
@@ -35,14 +46,23 @@ namespace IHA_Backend.Business.Services
 
             // Durum değişikliğini kontrol et ve gerekirse tüm istemcilere bildir
             CheckAndBroadcastStatusChange(oldData, telemetryData);
+            return true;
         }
 
         /// <summary>
         /// Belirtilen ICAO koduna sahip uçağın telemetri takibini sonlandırır ve veriyi bellekten temizler.
         /// </summary>
-        public void EndMission(string icao)
+        public bool EndMission(string icao, string controllerName)
         {
-            _activeFlights.TryRemove(icao, out _);
+            if (_activeFlights.TryGetValue(icao, out var existing))
+            {
+                if (!string.IsNullOrEmpty(existing.ControlledBy) && existing.ControlledBy != controllerName)
+                {
+                    return false; // Farklı bir admin sonlandırmaya çalışıyor
+                }
+                return _activeFlights.TryRemove(icao, out _);
+            }
+            return true;
         }
 
         /// <summary>

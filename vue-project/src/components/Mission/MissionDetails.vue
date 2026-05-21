@@ -114,53 +114,64 @@
       </div>
 
       <!-- SADECE ADMİNLER GÖREBİLİR -->
-      <div v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="action-section d-flex flex-column gap-2 mt-4">
-        <v-btn
-          v-if="currentFlightState !== 'STANDBY' && currentFlightState !== 'EMERGENCY_LANDED' && currentFlightState !== 'ARRIVED' && !isReturningToStart && !isEmergency && !isEmergencySimulated"
-          color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')"
-          style="font-size: 11px !important; letter-spacing: 0.5px;">
-          ANA MERKEZE DÖN
-        </v-btn>
-
-
-        <v-btn v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart" color="warning" block
-          size="default" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')"
-          style="font-size: 11px !important; letter-spacing: 0.5px;">
-          ARIZA SİMÜLE ET
-        </v-btn>
-
-        <!-- Acil Durum Alanı -->
-        <div v-if="isEmergencySimulated" class="pa-2 rounded-lg" style="border: 2px solid #e74c3c;">
-          <div class="text-caption text-center font-weight-bold mb-2 blink-text" style="color: #e74c3c;">
-            <v-icon icon="mdi-alert-octagon" /> {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
+      <div v-if="authStore.user?.role?.toLowerCase() === 'admin'">
+        <div v-if="selectedFlight.controlledBy && selectedFlight.controlledBy !== authStore.user?.username" 
+             class="pa-3 mt-4 rounded-lg text-center" 
+             style="border: 1px solid #e74c3c; background-color: rgba(231, 76, 60, 0.05);">
+          <div class="text-caption font-weight-bold" style="color: #e74c3c; line-height: 1.4;">
+            <v-icon icon="mdi-account-lock" class="mr-1" />
+            Bu uçuş <b>{{ selectedFlight.controlledBy }}</b> tarafından yönetilmektedir. Müdahale yetkiniz bulunmuyor.
           </div>
-          <v-btn color="error" block size="default" @click="$emit('handle-manual-emergency')"
-            style="font-size: 11px !important; letter-spacing: 0.5px;">ACİL İNİŞ YAP</v-btn>
         </div>
-      </div>
+        <template v-else>
+          <div class="action-section d-flex flex-column gap-2 mt-4">
+            <v-btn
+              v-if="currentFlightState !== 'STANDBY' && currentFlightState !== 'EMERGENCY_LANDED' && currentFlightState !== 'ARRIVED' && !isReturningToStart && !isEmergency && !isEmergencySimulated"
+              color="error" variant="outlined" block size="default" prepend-icon="mdi-restore" @click="$emit('return-to-start')"
+              style="font-size: 11px !important; letter-spacing: 0.5px;">
+              ANA MERKEZE DÖN
+            </v-btn>
 
-      <!-- SADECE ADMİNLER GÖREBİLİR -->
-      <div v-if="authStore.user?.role?.toLowerCase() === 'admin'" class="manual-target-input mt-8 pt-4" style="border-top: 1px solid rgba(0,0,0,0.1);">
-        <h4 style="margin-bottom: 20px !important; font-size: 0.95rem; font-weight: bold;">Operasyonu Güncelle</h4>
-        <v-autocomplete v-model="manualAirportId" label="Yeni Hedef Seç" variant="outlined" density="compact"
-          :items="[{ id: 'MANUAL_COORD', name: 'Manuel Koordinat Girişi' }, ...airports]"
-          :item-title="item => item.id === 'MANUAL_COORD' ? item.name : (item.name && item.id ? `${item.name} (${item.id})` : (item.name || item.id || ''))"
-          item-value="id" :custom-filter="(value, query, item) => {
-            const q = query.toLowerCase();
-            const nm = (item.raw.name || '').toLowerCase();
-            const cid = (item.raw.id || '').toLowerCase();
-            return nm.includes(q) || cid.includes(q);
-          }" hide-details class="mb-2" />
 
-        <v-row v-if="manualAirportId === 'MANUAL_COORD'" dense class="mt-2 mb-2">
-          <v-col cols="6"><v-text-field v-model="manualLat" label="Lat" type="number" variant="outlined" density="compact" hide-details /></v-col>
-          <v-col cols="6"><v-text-field v-model="manualLon" label="Lon" type="number" variant="outlined" density="compact" hide-details /></v-col>
-        </v-row>
+            <v-btn v-if="!isPaused && !isEmergencySimulated && !isEmergency && !isReturningToStart" color="warning" block
+              size="default" prepend-icon="mdi-alert" @click="$emit('trigger-simulated-failure')"
+              style="font-size: 11px !important; letter-spacing: 0.5px;">
+              ARIZA SİMÜLE ET
+            </v-btn>
 
-        <v-btn color="primary" block size="default" prepend-icon="mdi-arrow-right-bold" @click="$emit('set-manual-target')"
-          class="font-weight-bold text-none" style="margin-top: 10px !important; font-size: 11px !important; letter-spacing: 0.5px;">
-          HEDEFE YÖNLENDİR
-        </v-btn>
+            <!-- Acil Durum Alanı -->
+            <div v-if="isEmergencySimulated" class="pa-2 rounded-lg" style="border: 2px solid #e74c3c;">
+              <div class="text-caption text-center font-weight-bold mb-2 blink-text" style="color: #e74c3c;">
+                <v-icon icon="mdi-alert-octagon" /> {{ activeFailure?.label || 'SİSTEM ARIZASI!' }} ({{ emergencyCountdown }}s)
+              </div>
+              <v-btn color="error" block size="default" @click="$emit('handle-manual-emergency')"
+                style="font-size: 11px !important; letter-spacing: 0.5px;">ACİL İNİŞ YAP</v-btn>
+            </div>
+          </div>
+
+          <div class="manual-target-input mt-8 pt-4" style="border-top: 1px solid rgba(0,0,0,0.1);">
+            <h4 style="margin-bottom: 20px !important; font-size: 0.95rem; font-weight: bold;">Operasyonu Güncelle</h4>
+            <v-autocomplete v-model="manualAirportId" label="Yeni Hedef Seç" variant="outlined" density="compact"
+              :items="[{ id: 'MANUAL_COORD', name: 'Manuel Koordinat Girişi' }, ...airports]"
+              :item-title="item => item.id === 'MANUAL_COORD' ? item.name : (item.name && item.id ? `${item.name} (${item.id})` : (item.name || item.id || ''))"
+              item-value="id" :custom-filter="(value, query, item) => {
+                const q = query.toLowerCase();
+                const nm = (item.raw.name || '').toLowerCase();
+                const cid = (item.raw.id || '').toLowerCase();
+                return nm.includes(q) || cid.includes(q);
+              }" hide-details class="mb-2" />
+
+            <v-row v-if="manualAirportId === 'MANUAL_COORD'" dense class="mt-2 mb-2">
+              <v-col cols="6"><v-text-field v-model="manualLat" label="Lat" type="number" variant="outlined" density="compact" hide-details /></v-col>
+              <v-col cols="6"><v-text-field v-model="manualLon" label="Lon" type="number" variant="outlined" density="compact" hide-details /></v-col>
+            </v-row>
+
+            <v-btn color="primary" block size="default" prepend-icon="mdi-arrow-right-bold" @click="$emit('set-manual-target')"
+              class="font-weight-bold text-none" style="margin-top: 10px !important; font-size: 11px !important; letter-spacing: 0.5px;">
+              HEDEFE YÖNLENDİR
+            </v-btn>
+          </div>
+        </template>
       </div>
 
       <!-- ADIM: Uçağın tüm geçmiş uçuşlarını listeleyen tablo bileşeni -->

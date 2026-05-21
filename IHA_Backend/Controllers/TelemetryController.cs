@@ -35,7 +35,12 @@ namespace IHA_Backend.Controllers
         [HttpPost("update")]
         public IActionResult UpdateTelemetry([FromBody] TelemetryDataDto telemetryData)
         {
-            _telemetryService.UpdateTelemetry(telemetryData);
+            var username = User.Identity?.Name ?? "Bilinmeyen";
+            var success = _telemetryService.UpdateTelemetry(telemetryData, username);
+            if (!success)
+            {
+                return StatusCode(403, new { message = "Bu uçuş başka bir admin tarafından yönetilmektedir." });
+            }
             return Ok(new { message = "Telemetri verisi başarıyla senkronize edildi." });
         }
 
@@ -47,7 +52,12 @@ namespace IHA_Backend.Controllers
         [HttpPost("end/{icao}")]
         public IActionResult EndMission(string icao)
         {
-            _telemetryService.EndMission(icao);
+            var username = User.Identity?.Name ?? "Bilinmeyen";
+            var success = _telemetryService.EndMission(icao, username);
+            if (!success)
+            {
+                return StatusCode(403, new { message = "Bu uçuş başka bir admin tarafından yönetilmektedir." });
+            }
             return Ok(new { message = "Uçuş görevi başarıyla sonlandırıldı ve bellek temizlendi." });
         }
     }

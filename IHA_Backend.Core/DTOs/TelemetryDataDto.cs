@@ -21,5 +21,6 @@ namespace IHA_Backend.Core.DTOs
         public double? DestLon { get; set; } // Hedef Boylam
         public string? DestName { get; set; } // Hedef İsmi (Örn: ARN, Kastamonu)
         public string? ModelType { get; set; } // Uçak Modeli (Örn: B738, TB2)
+        public string? ControlledBy { get; set; } // Uçuşu Yöneten Admin Kullanıcı Adı
     }
 }

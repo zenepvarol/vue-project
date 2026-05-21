@@ -4,6 +4,7 @@
 import Swal from 'sweetalert2';
 import { getDistance } from '@/utils/physics';
 import { FLIGHT_STATUS } from '@/constants/flightConstants';
+import { useAuthStore } from '@/stores/authStore';
 
 const props = defineProps({
   airports: Array,
@@ -18,6 +19,8 @@ const manualAirportId = defineModel('manualAirportId');
 const isManualRouting = defineModel('isManualRouting');
 const manualTarget = defineModel('manualTarget');
 const isPaused = defineModel('isPaused');
+
+const authStore = useAuthStore();
 
 // Manuel hedef tanımlama ve rotayı başlatma
 const setManualTarget = () => {
@@ -44,6 +47,7 @@ const setManualTarget = () => {
     plane.distance_from_dep = 0;
     plane.total_manual_dist = dist;
     plane.status = FLIGHT_STATUS.ACTIVE;
+    plane.controlledBy = authStore.user?.username;
     
     const targetName = manualAirportId.value === 'MANUAL_COORD' ? 'Manuel' : (targetAp?.id || 'Hedef');
     plane.missionDestName = targetName;

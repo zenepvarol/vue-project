@@ -6,10 +6,10 @@ namespace IHA_Backend.Business.Interfaces
     public interface ITelemetryService
     {
         // Uçağın konumunu RAM'de günceller (Yoksa ekler)
-        void UpdateTelemetry(TelemetryDataDto telemetryData);
+        bool UpdateTelemetry(TelemetryDataDto telemetryData, string controllerName);
         
         // Uçak inince RAM'den siler
-        void EndMission(string icao);
+        bool EndMission(string icao, string controllerName);
         
         // Havada olan tüm uçuşları liste olarak döner
         IEnumerable<TelemetryDataDto> GetActiveFlights();
