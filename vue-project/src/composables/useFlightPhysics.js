@@ -1,4 +1,5 @@
 import { getDistance, calculateNextPosition, interpolateSlerp } from '@/utils/physics';
+import L from 'leaflet';
 
 /**
  * Uçakların hareket fiziğini ve harita üzerindeki marker güncellemelerini yöneten composable.
@@ -69,8 +70,19 @@ export function useFlightPhysics(currentFlights, mapPlanes, mapRoutes, isEmergen
     }
 
     // Rota çizgisini güncelle
-    if (mapRoutes.value?.activeRoutes[icao] && !isEmergency.value) {
-      mapRoutes.value.activeRoutes[icao].addLatLng(newPos);
+    const planeEmergency = plane.isEmergency !== undefined ? plane.isEmergency : isEmergency.value;
+    if (mapRoutes.value && !planeEmergency) {
+      if (!mapRoutes.value.activeRoutes[icao]) {
+        const parentLayer = mapRoutes.value.routeLayer || marker?._map;
+        if (parentLayer) {
+          mapRoutes.value.activeRoutes[icao] = L.polyline([[plane.lat, plane.lon]], {
+            color: '#9381ff', weight: 4, opacity: 1
+          }).addTo(parentLayer);
+        }
+      }
+      if (mapRoutes.value.activeRoutes[icao]) {
+        mapRoutes.value.activeRoutes[icao].addLatLng(newPos);
+      }
     }
     return false;
   };

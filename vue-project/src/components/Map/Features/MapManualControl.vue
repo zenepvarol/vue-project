@@ -51,6 +51,11 @@ const setManualTarget = () => {
     
     const targetName = manualAirportId.value === 'MANUAL_COORD' ? 'Manuel' : (targetAp?.id || 'Hedef');
     plane.missionDestName = targetName;
+    
+    plane.isManualRouting = true;
+    plane.manualTarget = { ...target, name: targetName };
+    plane.isPaused = false;
+
     manualTarget.value = { ...target, name: targetName };
     isManualRouting.value = true;
     isPaused.value = false;

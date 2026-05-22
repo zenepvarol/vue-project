@@ -208,7 +208,8 @@ defineExpose({
   setEmergencyRoute,
   missionPaths,
   emergencyRoute,
-  activeRoutes
+  activeRoutes,
+  routeLayer
 });
 </script>
 

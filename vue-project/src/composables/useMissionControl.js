@@ -37,18 +37,22 @@ export function useMissionControl(context) {
   /**
    * Mevcut görevi iptal eder ve uçağı başlangıç koordinatlarına (ana merkeze) geri döndürür.
    */
-  const returnToStart = () => {
-    if (!activeIcao.value) return;
-    const icao = activeIcao.value;
+  const returnToStart = (targetIcao = null) => {
+    const icao = targetIcao || activeIcao.value;
+    if (!icao) return;
     const plane = currentFlights.value[icao];
 
-    if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha)) {
+    if (plane && (props.myFleetIcaos.includes(String(icao)) || plane.isSiha || plane.IsSiha)) {
       // Eğer uçuş tamamlanıp (MISSION_COMPLETE) üsse dönülüyorsa kalkış noktasını hedef olarak kaydet.
       // Yol ortasında (görev tamamlanmadan) ana merkeze dönülüyorsa gerçek kalkış noktasını bozma.
       if (plane.status === FLIGHT_STATUS.MISSION_COMPLETE) {
         plane.lastDepartureName = plane.missionDestName || "Görev Sahası";
       }
       plane.status = FLIGHT_STATUS.RETURNING;
+      plane.isReturningToStart = true;
+      plane.isEmergency = false;
+      plane.isPaused = false;
+      plane.isManualRouting = false;
     }
 
     const path = flightPaths.value[icao];
@@ -69,11 +73,19 @@ export function useMissionControl(context) {
     }
 
     resetActivePath(icao);
-    isReturningToStart.value = true;
-    isEmergency.value = false;
-    isPaused.value = false;
-    isManualRouting.value = false;
-    mapRoutes.value?.clearAllRoutes();
+
+    if (icao === activeIcao.value) {
+      isReturningToStart.value = true;
+      isEmergency.value = false;
+      isPaused.value = false;
+      isManualRouting.value = false;
+      mapRoutes.value?.clearAllRoutes();
+    } else {
+      if (mapRoutes.value?.missionPaths[icao] && props.map) {
+        props.map.removeLayer(mapRoutes.value.missionPaths[icao]);
+        delete mapRoutes.value.missionPaths[icao];
+      }
+    }
   };
 
   // Alt bileşenler üzerindeki görev komutlarını tetikleyen fonksiyonlar
